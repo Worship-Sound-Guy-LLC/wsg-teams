@@ -124,7 +124,7 @@
     <div class="login-subtitle">Enter the email address you used to purchase your WSG team subscription.</div>
     <input type="email" id="emailInput" placeholder="your@email.com" />
     <div class="error-msg" id="loginError"></div>
-    <button class="btn btn-primary" onclick="loadDashboard()">View My Team →</button>
+    <button class="btn btn-primary" id="loginBtn">View My Team →</button>
   </div>
 
   <!-- Dashboard (hidden until login) -->
@@ -172,7 +172,7 @@
     const container = document.getElementById('teamsContainer');
     container.innerHTML = '';
 
-    teams.forEach(team => {
+    teams.forEach(function(team) {
       const pct = Math.round((team.seatsUsed / team.seatLimit) * 100);
       const isFull = team.seatsUsed >= team.seatLimit;
       const badgeClass = team.accessType === 'subscription' ? 'badge-subscription' : 'badge-course';
@@ -180,84 +180,145 @@
 
       const membersHTML = team.members.length === 0
         ? '<div class="empty-members">No members added yet. Share your invite link below!</div>'
-        : team.members.map(m => `
-            <div class="member-row">
-              <div>
-                <div class="member-email">${m.email}</div>
-                <div class="member-date">Joined ${new Date(m.joinedAt).toLocaleDateString()}</div>
-              </div>
-              <button class="btn btn-remove" onclick="removeMember('${team.id}', '${m.email}', '${leaderEmail}')">Remove</button>
-            </div>
-          `).join('');
+        : team.members.map(function(m) {
+            return '<div class="member-row">' +
+              '<div>' +
+                '<div class="member-email">' + m.email + '</div>' +
+                '<div class="member-date">Joined ' + new Date(m.joinedAt).toLocaleDateString() + '</div>' +
+              '</div>' +
+              '<button class="btn btn-remove" data-team="' + team.id + '" data-email="' + m.email + '" data-leader="' + leaderEmail + '">Remove</button>' +
+            '</div>';
+          }).join('');
+
+      const addMemberSection = !isFull
+        ? '<div class="add-member-section">' +
+            '<div class="members-title">Add a Member by Email</div>' +
+            '<div class="add-member-row">' +
+              '<input type="email" id="addEmail-' + team.id + '" placeholder="member@email.com" />' +
+              '<button class="btn btn-primary" style="width:auto" data-add-team="' + team.id + '" data-token="' + (team.inviteLink ? team.inviteLink.split('token=')[1] : '') + '" data-leader="' + leaderEmail + '">Add</button>' +
+            '</div>' +
+            '<div class="error-msg" id="addError-' + team.id + '"></div>' +
+          '</div>'
+        : '';
 
       const card = document.createElement('div');
       card.className = 'card';
-      card.innerHTML = `
-        <div class="team-header">
-          <div class="team-title">${badgeLabel}</div>
-          <span class="badge ${badgeClass}">${team.seatsUsed}/${team.seatLimit} seats used</span>
-        </div>
-
-        <div class="seats-bar-wrap">
-          <div class="seats-label">${isFull ? '⚠️ Team is full' : `${team.seatsRemaining} seat${team.seatsRemaining !== 1 ? 's' : ''} remaining`}</div>
-          <div class="seats-bar"><div class="seats-fill ${isFull ? 'full' : ''}" style="width:${pct}%"></div></div>
-        </div>
-
-        <div class="invite-section">
-          <div class="invite-label">Your Invite Link</div>
-          <div class="invite-link-row">
-            <div class="invite-link-text" id="link-${team.id}">${team.inviteLink || 'No invite link available'}</div>
-            <button class="btn btn-copy" onclick="copyLink('${team.id}')">Copy</button>
-          </div>
-          <div class="copied" id="copied-${team.id}" style="display:none">✓ Copied!</div>
-        </div>
-
-        <div class="members-title">Team Members</div>
-        <div id="members-${team.id}">${membersHTML}</div>
-
-        ${!isFull ? `
-        <div class="add-member-section">
-          <div class="members-title">Add a Member by Email</div>
-          <div class="add-member-row">
-            <input type="email" id="addEmail-${team.id}" placeholder="member@email.com" />
-            <button class="btn btn-primary" style="width:auto" onclick="addMember('${team.id}', '${team.inviteLink?.split('token=')[1]}', '${leaderEmail}')">Add</button>
-          </div>
-          <div class="error-msg" id="addError-${team.id}"></div>
-        </div>` : ''}
-      `;
+      card.innerHTML =
+        '<div class="team-header">' +
+          '<div class="team-title">' + badgeLabel + '</div>' +
+          '<span class="badge ' + badgeClass + '">' + team.seatsUsed + '/' + team.seatLimit + ' seats used</span>' +
+        '</div>' +
+        '<div class="seats-bar-wrap">' +
+          '<div class="seats-label">' + (isFull ? '⚠️ Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
+          '<div class="seats-bar"><div class="seats-fill ' + (isFull ? 'full' : '') + '" style="width:' + pct + '%"></div></div>' +
+        '</div>' +
+        '<div class="invite-section">' +
+          '<div class="invite-label">Your Invite Link</div>' +
+          '<div class="invite-link-row">' +
+            '<div class="invite-link-text" id="link-' + team.id + '">' + (team.inviteLink || 'No invite link available') + '</div>' +
+            '<button class="btn btn-copy" data-copy="' + team.id + '">Copy</button>' +
+          '</div>' +
+          '<div class="copied" id="copied-' + team.id + '" style="display:none">✓ Copied!</div>' +
+        '</div>' +
+        '<div class="members-title">Team Members</div>' +
+        '<div id="members-' + team.id + '">' + membersHTML + '</div>' +
+        addMemberSection;
 
       container.appendChild(card);
+    });
+
+    // Attach event listeners after rendering
+    container.querySelectorAll('[data-copy]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        copyLink(btn.getAttribute('data-copy'));
+      });
+    });
+
+    container.querySelectorAll('[data-add-team]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        addMember(
+          btn.getAttribute('data-add-team'),
+          btn.getAttribute('data-token'),
+          btn.getAttribute('data-leader')
+        );
+      });
+    });
+
+    container.querySelectorAll('[data-team]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        removeMember(
+          btn.getAttribute('data-team'),
+          btn.getAttribute('data-email'),
+          btn.getAttribute('data-leader')
+        );
+      });
     });
   }
 
   async function addMember(teamId, token, leaderEmail) {
-    const email = document.getElementById(`addEmail-${teamId}`).value.trim();
-    const errorEl = document.getElementById(`addError-${teamId}`);
+    const emailInput = document.getElementById('addEmail-' + teamId);
+    const errorEl = document.getElementById('addError-' + teamId);
+    const email = emailInput.value.trim();
     errorEl.textContent = '';
 
     if (!email) { errorEl.textContent = 'Please enter an email.'; return; }
 
     try {
-      const res = await fetch(`${API_BASE}/invite`, {
+      const res = await fetch(API_BASE + '/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, memberEmail: email })
+        body: JSON.stringify({ token: token, memberEmail: email })
       });
       const data = await res.json();
 
       if (!res.ok) { errorEl.textContent = data.error; return; }
 
-      // Reload dashboard
       loadDashboardForEmail(leaderEmail);
-    } catch {
+    } catch (e) {
       errorEl.textContent = 'Something went wrong. Please try again.';
     }
   }
 
   async function removeMember(teamId, memberEmail, leaderEmail) {
-    if (!confirm(`Remove ${memberEmail} from this team?`)) return;
+    if (!confirm('Remove ' + memberEmail + ' from this team?')) return;
 
     try {
-      const res = await fetch(`${API_BASE}/remove-member`, {
+      const res = await fetch(API_BASE + '/remove-member', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json'
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId: teamId, memberEmail: memberEmail })
+      });
+
+      if (res.ok) {
+        loadDashboardForEmail(leaderEmail);
+      }
+    } catch (e) {
+      alert('Something went wrong. Please try again.');
+    }
+  }
+
+  async function loadDashboardForEmail(email) {
+    const res = await fetch(API_BASE + '/dashboard?email=' + encodeURIComponent(email));
+    const data = await res.json();
+    if (res.ok) renderTeams(data.teams, email);
+  }
+
+  function copyLink(teamId) {
+    const text = document.getElementById('link-' + teamId).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      document.getElementById('copied-' + teamId).style.display = 'block';
+      setTimeout(function() {
+        document.getElementById('copied-' + teamId).style.display = 'none';
+      }, 2000);
+    });
+  }
+
+  document.getElementById('loginBtn').addEventListener('click', loadDashboard);
+
+  document.getElementById('emailInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') loadDashboard();
+  });
+</script>
+
+</body>
+</html>
