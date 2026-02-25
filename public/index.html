@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSG Team Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+    }
+    .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header h1 { font-size: 1.3rem; font-weight: 600; }
+    .header p { font-size: 0.85rem; opacity: 0.7; }
+    .container { max-width: 700px; margin: 0 auto; padding: 24px 16px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .login-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 6px; }
+    .login-subtitle { color: #666; font-size: 0.9rem; margin-bottom: 20px; }
+    input[type="email"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="email"]:focus { border-color: #4f46e5; }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
+      text-align: center;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn-primary { background: #4f46e5; color: white; width: 100%; }
+    .btn-copy { background: #f0f0f0; color: #333; font-size: 0.85rem; padding: 8px 14px; }
+    .btn-remove { background: #fee2e2; color: #dc2626; font-size: 0.8rem; padding: 6px 12px; }
+    .team-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .team-title { font-size: 1.05rem; font-weight: 600; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-subscription { background: #ede9fe; color: #6d28d9; }
+    .badge-course { background: #d1fae5; color: #065f46; }
+    .seats-bar-wrap { margin-bottom: 16px; }
+    .seats-label { font-size: 0.85rem; color: #666; margin-bottom: 6px; }
+    .seats-bar { background: #e5e7eb; border-radius: 99px; height: 8px; overflow: hidden; }
+    .seats-fill { background: #4f46e5; height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .seats-fill.full { background: #dc2626; }
+    .invite-section { background: #f8f8ff; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    .invite-label { font-size: 0.8rem; color: #666; margin-bottom: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .invite-link-row { display: flex; gap: 8px; align-items: center; }
+    .invite-link-text {
+      flex: 1;
+      font-size: 0.82rem;
+      color: #4f46e5;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 7px 10px;
+      word-break: break-all;
+    }
+    .members-title { font-size: 0.85rem; font-weight: 600; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .member-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .member-row:last-child { border-bottom: none; }
+    .member-email { font-size: 0.9rem; }
+    .member-date { font-size: 0.78rem; color: #999; margin-top: 2px; }
+    .empty-members { color: #999; font-size: 0.88rem; text-align: center; padding: 16px 0; }
+    .error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
+    .loading { text-align: center; color: #999; padding: 40px; }
+    .add-member-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+    .add-member-row { display: flex; gap: 8px; }
+    .add-member-row input { margin-bottom: 0; flex: 1; }
+    .copied { color: #16a34a; font-size: 0.8rem; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>WSG Team Dashboard</h1>
+    <p>Manage your team members</p>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Login Card -->
+  <div class="card" id="loginCard">
+    <div class="login-title">Access Your Team Dashboard</div>
+    <div class="login-subtitle">Enter the email address you used to purchase your WSG team subscription.</div>
+    <input type="email" id="emailInput" placeholder="your@email.com" />
+    <div class="error-msg" id="loginError"></div>
+    <button class="btn btn-primary" onclick="loadDashboard()">View My Team →</button>
+  </div>
+
+  <!-- Dashboard (hidden until login) -->
+  <div id="dashboard" style="display:none">
+    <div id="teamsContainer"></div>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = '/api';
+
+  async function loadDashboard() {
+    const email = document.getElementById('emailInput').value.trim();
+    if (!email) {
+      document.getElementById('loginError').textContent = 'Please enter your email address.';
+      return;
+    }
+
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('teamsContainer').innerHTML = '<div class="loading">Loading your team...</div>';
+    document.getElementById('dashboard').style.display = 'block';
+
+    try {
+      const res = await fetch(`${API_BASE}/dashboard?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        document.getElementById('teamsContainer').innerHTML = '';
+        document.getElementById('loginError').textContent = data.error || 'No team found for that email.';
+        document.getElementById('dashboard').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('loginCard').style.display = 'none';
+      renderTeams(data.teams, email);
+    } catch (err) {
+      document.getElementById('teamsContainer').innerHTML = '';
+      document.getElementById('loginError').textContent = 'Something went wrong. Please try again.';
+      document.getElementById('dashboard').style.display = 'none';
+    }
+  }
+
+  function renderTeams(teams, leaderEmail) {
+    const container = document.getElementById('teamsContainer');
+    container.innerHTML = '';
+
+    teams.forEach(team => {
+      const pct = Math.round((team.seatsUsed / team.seatLimit) * 100);
+      const isFull = team.seatsUsed >= team.seatLimit;
+      const badgeClass = team.accessType === 'subscription' ? 'badge-subscription' : 'badge-course';
+      const badgeLabel = team.accessType === 'subscription' ? 'Subscription Team' : 'Course Team';
+
+      const membersHTML = team.members.length === 0
+        ? '<div class="empty-members">No members added yet. Share your invite link below!</div>'
+        : team.members.map(m => `
+            <div class="member-row">
+              <div>
+                <div class="member-email">${m.email}</div>
+                <div class="member-date">Joined ${new Date(m.joinedAt).toLocaleDateString()}</div>
+              </div>
+              <button class="btn btn-remove" onclick="removeMember('${team.id}', '${m.email}', '${leaderEmail}')">Remove</button>
+            </div>
+          `).join('');
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <div class="team-header">
+          <div class="team-title">${badgeLabel}</div>
+          <span class="badge ${badgeClass}">${team.seatsUsed}/${team.seatLimit} seats used</span>
+        </div>
+
+        <div class="seats-bar-wrap">
+          <div class="seats-label">${isFull ? '⚠️ Team is full' : `${team.seatsRemaining} seat${team.seatsRemaining !== 1 ? 's' : ''} remaining`}</div>
+          <div class="seats-bar"><div class="seats-fill ${isFull ? 'full' : ''}" style="width:${pct}%"></div></div>
+        </div>
+
+        <div class="invite-section">
+          <div class="invite-label">Your Invite Link</div>
+          <div class="invite-link-row">
+            <div class="invite-link-text" id="link-${team.id}">${team.inviteLink || 'No invite link available'}</div>
+            <button class="btn btn-copy" onclick="copyLink('${team.id}')">Copy</button>
+          </div>
+          <div class="copied" id="copied-${team.id}" style="display:none">✓ Copied!</div>
+        </div>
+
+        <div class="members-title">Team Members</div>
+        <div id="members-${team.id}">${membersHTML}</div>
+
+        ${!isFull ? `
+        <div class="add-member-section">
+          <div class="members-title">Add a Member by Email</div>
+          <div class="add-member-row">
+            <input type="email" id="addEmail-${team.id}" placeholder="member@email.com" />
+            <button class="btn btn-primary" style="width:auto" onclick="addMember('${team.id}', '${team.inviteLink?.split('token=')[1]}', '${leaderEmail}')">Add</button>
+          </div>
+          <div class="error-msg" id="addError-${team.id}"></div>
+        </div>` : ''}
+      `;
+
+      container.appendChild(card);
+    });
+  }
+
+  async function addMember(teamId, token, leaderEmail) {
+    const email = document.getElementById(`addEmail-${teamId}`).value.trim();
+    const errorEl = document.getElementById(`addError-${teamId}`);
+    errorEl.textContent = '';
+
+    if (!email) { errorEl.textContent = 'Please enter an email.'; return; }
+
+    try {
+      const res = await fetch(`${API_BASE}/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, memberEmail: email })
+      });
+      const data = await res.json();
+
+      if (!res.ok) { errorEl.textContent = data.error; return; }
+
+      // Reload dashboard
+      loadDashboardForEmail(leaderEmail);
+    } catch {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+    }
+  }
+
+  async function removeMember(teamId, memberEmail, leaderEmail) {
+    if (!confirm(`Remove ${memberEmail} from this team?`)) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/remove-member`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json'
