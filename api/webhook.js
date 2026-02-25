@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import getRawBody from 'raw-body';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
@@ -12,6 +13,12 @@ const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 const TEAM_SUBSCRIPTION_PRODUCT_ID = 'prod_U2vN9o0joPvgXD';
 const INDIVIDUAL_SUBSCRIPTION_PRODUCT_ID = 'prod_U2vMxPzXlXydBn';
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -20,9 +27,11 @@ export default async function handler(req, res) {
   const sig = req.headers['stripe-signature'];
   let event;
 
+  const rawBody = await getRawBody(req);
+
   try {
     event = stripe.webhooks.constructEvent(
-      req.body,
+      rawBody,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET
     );
