@@ -3,111 +3,153 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WSG Team Dashboard</title>
+  <title>WSG | CENTRAL — Team Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f5f5f5;
-      color: #333;
+      background: #111111;
+      color: #fff;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
     .header {
-      background: #1a1a2e;
-      color: white;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
       padding: 20px 24px;
+      display: flex;
+      align-items: center;
     }
-    .header h1 { font-size: 1.3rem; font-weight: 600; }
-    .header p { font-size: 0.85rem; opacity: 0.7; }
-    .container {
-      max-width: 480px;
-      margin: 60px auto;
-      padding: 0 16px;
-      width: 100%;
+    .header img {
+      height: 32px;
+      width: auto;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
     }
     .card {
-      background: white;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
       border-radius: 12px;
-      padding: 32px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 440px;
     }
-    .card-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 8px; }
-    .card-subtitle { color: #666; font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5; }
+    .card-eyebrow {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #1a8cff;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .card-subtitle {
+      color: #999;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
     input[type="email"] {
       width: 100%;
-      padding: 12px 14px;
-      border: 1px solid #ddd;
+      padding: 13px 16px;
+      background: #111;
+      border: 1px solid #333;
       border-radius: 8px;
       font-size: 1rem;
+      color: white;
       margin-bottom: 12px;
       outline: none;
       transition: border-color 0.2s;
     }
-    input[type="email"]:focus { border-color: #4f46e5; }
+    input[type="email"]::placeholder { color: #555; }
+    input[type="email"]:focus { border-color: #1a8cff; }
     .btn {
       width: 100%;
-      padding: 12px 20px;
+      padding: 13px 20px;
       border-radius: 8px;
       font-size: 0.95rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      background: #4f46e5;
+      background: #1a8cff;
       color: white;
-      transition: opacity 0.2s;
+      transition: background 0.2s;
+      letter-spacing: 0.02em;
     }
-    .btn:hover { opacity: 0.88; }
+    .btn:hover { background: #0077ee; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
+    .error-msg { color: #ff4444; font-size: 0.85rem; margin-top: 8px; }
     .success-box {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
+      display: none;
+      background: #111;
+      border: 1px solid #2a2a2a;
       border-radius: 8px;
       padding: 20px;
       text-align: center;
-      display: none;
     }
-    .success-box h3 { color: #16a34a; margin-bottom: 8px; }
-    .success-box p { color: #555; font-size: 0.9rem; line-height: 1.5; }
+    .success-box .icon { font-size: 2rem; margin-bottom: 10px; }
+    .success-box h3 { font-size: 1rem; margin-bottom: 6px; }
+    .success-box p { color: #999; font-size: 0.88rem; line-height: 1.5; }
+    .footer {
+      text-align: center;
+      padding: 24px;
+      color: #444;
+      font-size: 0.8rem;
+    }
+    .footer a { color: #1a8cff; text-decoration: none; }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>WSG Team Dashboard</h1>
-  <p>Manage your team members</p>
+  <img src="/WSG Central Logo_lite.png" alt="WSG | CENTRAL" />
 </div>
 
-<div class="container">
+<div class="main">
   <div class="card">
-    <div id="loginForm">
-      <div class="card-title">Sign in to your dashboard</div>
-      <div class="card-subtitle">Enter the email address you used to purchase your WSG team subscription. We'll send you a secure login link.</div>
+    <div class="card-eyebrow">Team Dashboard</div>
+    <div class="card-title">Sign in to manage your team</div>
+    <div class="card-subtitle">Enter the email address you used to purchase your WSG Central team subscription. We'll send you a secure, one-time login link.</div>
+
+    <div id="formState">
       <input type="email" id="emailInput" placeholder="your@email.com" />
       <div class="error-msg" id="errorMsg"></div>
-      <button class="btn" id="submitBtn">Send Login Link</button>
+      <button class="btn" id="sendBtn">Send Login Link</button>
     </div>
 
     <div class="success-box" id="successBox">
-      <h3>Check your email! ✉️</h3>
-      <p>We sent a secure login link to <strong id="sentEmail"></strong>.<br><br>Click the link in the email to access your team dashboard. The link expires in 1 hour.</p>
+      <div class="icon">📬</div>
+      <h3>Check your inbox</h3>
+      <p>We sent a login link to <strong id="sentTo"></strong>. Click the link in the email to access your dashboard.</p>
     </div>
   </div>
 </div>
 
-<script>
+<div class="footer">
+  Need help? <a href="mailto:support@worshipsoundguy.com">Contact support</a>
+</div>
 
-// If magic link landed here instead of dashboard, redirect with token
-if (window.location.hash && window.location.hash.includes('access_token')) {
-  window.location.href = '/dashboard.html' + window.location.hash;
-}
-  
+<script>
   const SUPABASE_URL = 'https://ptofajaxaopzdwtfvfhq.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_pbucGPyxVzuK77Q3n62QNA_F8x0SzY_';
 
-  document.getElementById('submitBtn').addEventListener('click', sendMagicLink);
+  // If magic link landed here instead of dashboard, redirect with token
+  if (window.location.hash && window.location.hash.includes('access_token')) {
+    window.location.href = '/dashboard.html' + window.location.hash;
+  }
+
+  document.getElementById('sendBtn').addEventListener('click', sendMagicLink);
   document.getElementById('emailInput').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') sendMagicLink();
   });
@@ -115,7 +157,7 @@ if (window.location.hash && window.location.hash.includes('access_token')) {
   async function sendMagicLink() {
     const email = document.getElementById('emailInput').value.trim();
     const errorMsg = document.getElementById('errorMsg');
-    const btn = document.getElementById('submitBtn');
+    const btn = document.getElementById('sendBtn');
 
     errorMsg.textContent = '';
 
@@ -142,17 +184,21 @@ if (window.location.hash && window.location.hash.includes('access_token')) {
         })
       });
 
-      if (res.ok) {
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('sentEmail').textContent = email;
+      if (res.ok || res.status === 200) {
+        document.getElementById('sentTo').textContent = email;
+        document.getElementById('formState').style.display = 'none';
         document.getElementById('successBox').style.display = 'block';
       } else {
         const data = await res.json();
-        errorMsg.textContent = data.msg || 'Something went wrong. Please try again.';
+        if (data.message && data.message.includes('rate limit')) {
+          errorMsg.textContent = 'Too many requests. Please wait a few minutes and try again.';
+        } else {
+          errorMsg.textContent = data.message || 'Something went wrong. Please try again.';
+        }
         btn.disabled = false;
         btn.textContent = 'Send Login Link';
       }
-    } catch (err) {
+    } catch (e) {
       errorMsg.textContent = 'Something went wrong. Please try again.';
       btn.disabled = false;
       btn.textContent = 'Send Login Link';
