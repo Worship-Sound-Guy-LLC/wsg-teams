@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
+const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -24,9 +26,10 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Member not found' });
   }
 
-  // NOTE: We intentionally do NOT delete from Circle.
-  // Removed members keep their Circle account and free community access.
-  // Full access revocation (access groups/subscriptions) to be implemented separately.
+  // Remove TeamMember tag from Circle
+  // Circle workflow will automatically remove WSG Teams access group
+  // and add Free Access access group
+  await removeCircleTag(memberEmail, 'TeamMember');
 
   // Update status in Supabase
   const { error: updateError } = await supabase
@@ -39,4 +42,35 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ success: true });
+}
+
+async function getCircleMemberId(email) {
+  const res = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members?email=${encodeURIComponent(email)}&community_id=${CIRCLE_COMMUNITY_ID}`,
+    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+  );
+  const data = await res.json();
+  // Circle v2 returns records[], not community_members[]
+  return data?.records?.[0]?.id || null;
+}
+
+async function removeCircleTag(email, tagSlug) {
+  const memberId = await getCircleMemberId(email);
+  if (!memberId) {
+    console.log(`Circle member not found for email: ${email}`);
+    return;
+  }
+
+  await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags/${tagSlug}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+
+  console.log(`Tag "${tagSlug}" removed from ${email}`);
 }
