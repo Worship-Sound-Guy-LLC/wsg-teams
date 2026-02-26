@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Join WSG Team</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 20px 24px;
+    }
+    .header h1 { font-size: 1.3rem; font-weight: 600; }
+    .header p { font-size: 0.85rem; opacity: 0.7; }
+    .container {
+      max-width: 480px;
+      margin: 60px auto;
+      padding: 0 16px;
+      width: 100%;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .invite-badge {
+      display: inline-block;
+      background: #ede9fe;
+      color: #6d28d9;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 8px; }
+    .card-subtitle { color: #666; font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5; }
+    input[type="email"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="email"]:focus { border-color: #4f46e5; }
+    .btn {
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: #4f46e5;
+      color: white;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
+    .success-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      display: none;
+    }
+    .success-box .checkmark { font-size: 2.5rem; margin-bottom: 12px; }
+    .success-box h3 { color: #16a34a; margin-bottom: 8px; font-size: 1.1rem; }
+    .success-box p { color: #555; font-size: 0.9rem; line-height: 1.5; }
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      display: none;
+    }
+    .error-box h3 { color: #dc2626; margin-bottom: 8px; }
+    .error-box p { color: #555; font-size: 0.9rem; line-height: 1.5; }
+    .loading-state { text-align: center; padding: 40px; color: #999; display: none; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>WSG Team Dashboard</h1>
+  <p>Worship Sound Guy Community</p>
+</div>
+
+<div class="container">
+  <div class="card">
+
+    <div id="loadingState" class="loading-state">
+      Validating invite...
+    </div>
+
+    <div id="joinForm" style="display:none">
+      <div class="invite-badge">🎉 You've been invited!</div>
+      <div class="card-title">Join your WSG Team</div>
+      <div class="card-subtitle">Your team leader has invited you to join their WSG Central team. Enter your email address to accept the invitation and get access to the community.</div>
+      <input type="email" id="emailInput" placeholder="your@email.com" />
+      <div class="error-msg" id="errorMsg"></div>
+      <button class="btn" id="joinBtn">Accept Invitation</button>
+    </div>
+
+    <div class="success-box" id="successBox">
+      <div class="checkmark">🎉</div>
+      <h3>You're in!</h3>
+      <p>You've successfully joined the WSG team. Check your email for an invitation to the Circle community — you'll be able to access all your content there.</p>
+    </div>
+
+    <div class="error-box" id="errorBox">
+      <h3>Invite issue</h3>
+      <p id="errorBoxMsg">This invite link is invalid or has expired. Please contact your team leader for a new invite link.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API_BASE = '/api';
+
+  // Get token from URL
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  window.addEventListener('load', function() {
+    if (!token) {
+      showError('No invite token found. Please use the full invite link provided by your team leader.');
+      return;
+    }
+
+    // Mark invite as viewed
+    markAsViewed(token);
+
+    // Show the join form
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('joinForm').style.display = 'block';
+  });
+
+  async function markAsViewed(token) {
+    try {
+      await fetch(API_BASE + '/invite-view', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token })
+      });
+    } catch (e) {
+      // Silent fail — viewing is tracked best-effort
+    }
+  }
+
+  document.getElementById('joinBtn').addEventListener('click', acceptInvite);
+  document.getElementById('emailInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') acceptInvite();
+  });
+
+  async function acceptInvite() {
+    const email = document.getElementById('emailInput').value.trim();
+    const errorMsg = document.getElementById('errorMsg');
+    const btn = document.getElementById('joinBtn');
+
+    errorMsg.textContent = '';
+
+    if (!email) {
+      errorMsg.textContent = 'Please enter your email address.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Joining...';
+
+    try {
+      const res = await fetch(API_BASE + '/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token, memberEmail: email })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('joinForm').style.display = 'none';
+        document.getElementById('successBox').style.display = 'block';
+      } else {
+        errorMsg.textContent = data.error || 'Something went wrong. Please try again.';
+        btn.disabled = false;
+        btn.textContent = 'Accept Invitation';
+      }
+    } catch (e) {
+      errorMsg.textContent = 'Something went wrong. Please try again.';
+      btn.disabled = false;
+      btn.textContent = 'Accept Invitation';
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('joinForm').style.display = 'none';
+    document.getElementById('errorBoxMsg').textContent = msg;
+    document.getElementById('errorBox').style.display = 'block';
+  }
+</script>
+
+</body>
+</html>
