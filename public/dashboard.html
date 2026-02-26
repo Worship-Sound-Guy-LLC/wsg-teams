@@ -110,7 +110,7 @@
       letter-spacing: 0.03em;
     }
     .invited { background: #2a2200; color: #f59e0b; }
-    .viewed  { background: #0d2040; color: #60a5fa; }
+    .opened  { background: #0d2040; color: #60a5fa; }
     .active  { background: #0d2a18; color: #22c55e; }
     .empty-members { color: #888; font-size: 0.9rem; text-align: center; padding: 20px 0; }
     .error-msg { color: #ff4444; font-size: 0.85rem; margin-top: 8px; }
@@ -178,8 +178,8 @@
   const API_BASE = '/api';
 
   function getStatusLabel(status) {
-    if (status === 'active') return '✓ Active';
-    if (status === 'viewed') return '👀 Viewed invite';
+    if (status === 'active') return '✓ Enrolled';
+    if (status === 'opened') return '👀 Opened';
     return '📧 Invite sent';
   }
 
