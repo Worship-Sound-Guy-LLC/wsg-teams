@@ -9,7 +9,6 @@ export default async function handler(req, res) {
   const { teamId } = req.body;
   if (!teamId) return res.status(400).json({ error: 'Team ID required' });
 
-  // Get all non-active members for this team
   const { data: members, error } = await supabase
     .from('team_members')
     .select('id, member_email, member_circle_id')
@@ -23,26 +22,35 @@ export default async function handler(req, res) {
 
   for (const member of members) {
     try {
-      // Search for this member in Circle by email
       const circleRes = await fetch(
         `https://app.circle.so/api/admin/v2/community_members?community_id=${CIRCLE_COMMUNITY_ID}&email=${encodeURIComponent(member.member_email)}`,
-        {
-          headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` }
-        }
+        { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
       );
       const circleData = await circleRes.json();
-      const circleMember = circleData?.community_members?.[0];
+      
+      // Log full response to help debug
+      console.log('Circle response for', member.member_email, JSON.stringify(circleData));
 
-      if (circleMember && circleMember.confirmed_at) {
-        // Member has confirmed their Circle account — mark as active
+      const circleMember = circleData?.community_members?.[0];
+      if (!circleMember) continue;
+
+      const inviteStatus = circleMember.invitation_status || '';
+      const isFullMember = circleMember.role === 'member' && (inviteStatus === 'accepted' || inviteStatus === 'member' || !inviteStatus);
+      const hasAccount = inviteStatus === 'account_created' || inviteStatus === 'account created' || circleMember.confirmed_at;
+
+      let newStatus = null;
+      if (isFullMember) newStatus = 'active';
+      else if (hasAccount) newStatus = 'viewed';
+
+      if (newStatus) {
         await supabase
           .from('team_members')
-          .update({ invite_status: 'active', member_circle_id: circleMember.id })
+          .update({ invite_status: newStatus, member_circle_id: circleMember.id })
           .eq('id', member.id);
         updated++;
       }
     } catch (e) {
-      // Skip this member if Circle check fails
+      console.error('Error syncing member', member.member_email, e);
     }
   }
 
