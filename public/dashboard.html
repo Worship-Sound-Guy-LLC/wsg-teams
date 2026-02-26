@@ -1,1 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSG Team Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+    }
+    .header {
+      background: #1a1a2e;
+      color: white;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { font-size: 1.3rem; font-weight: 600; }
+    .header p { font-size: 0.85rem; opacity: 0.7; }
+    .signout-btn {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .signout-btn:hover { background: rgba(255,255,255,0.25); }
+    .container { max-width: 700px; margin: 0 auto; padding: 24px 16px; }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
+      text-align: center;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn-primary { background: #4f46e5; color: white; }
+    .btn-copy { background: #f0f0f0; color: #333; font-size: 0.85rem; padding: 8px 14px; }
+    .btn-remove { background: #fee2e2; color: #dc2626; font-size: 0.8rem; padding: 6px 12px; }
+    .team-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+    .team-title { font-size: 1.05rem; font-weight: 600; }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-subscription { background: #ede9fe; color: #6d28d9; }
+    .badge-course { background: #d1fae5; color: #065f46; }
+    .seats-bar-wrap { margin-bottom: 16px; }
+    .seats-label { font-size: 0.85rem; color: #666; margin-bottom: 6px; }
+    .seats-bar { background: #e5e7eb; border-radius: 99px; height: 8px; overflow: hidden; }
+    .seats-fill { background: #4f46e5; height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .seats-fill.full { background: #dc2626; }
+    .invite-section { background: #f8f8ff; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    .invite-label { font-size: 0.8rem; color: #666; margin-bottom: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .invite-link-row { display: flex; gap: 8px; align-items: center; }
+    .invite-link-text {
+      flex: 1;
+      font-size: 0.82rem;
+      color: #4f46e5;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 7px 10px;
+      word-break: break-all;
+    }
+    .members-title { font-size: 0.85rem; font-weight: 600; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .member-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .member-row:last-child { border-bottom: none; }
+    .member-email { font-size: 0.9rem; }
+    .member-date { font-size: 0.78rem; color: #999; margin-top: 2px; }
+    .empty-members { color: #999; font-size: 0.88rem; text-align: center; padding: 16px 0; }
+    .error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
+    .loading { text-align: center; color: #999; padding: 40px; }
+    .add-member-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+    .add-member-row { display: flex; gap: 8px; }
+    .add-member-row input[type="email"] {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .add-member-row input[type="email"]:focus { border-color: #4f46e5; }
+    .copied { color: #16a34a; font-size: 0.8rem; margin-top: 4px; }
+    .no-team-card { text-align: center; padding: 40px 24px; }
+    .no-team-card h3 { margin-bottom: 8px; }
+    .no-team-card p { color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
 
+<div class="header">
+  <div>
+    <h1>WSG Team Dashboard</h1>
+    <p id="userEmailDisplay">Manage your team members</p>
+  </div>
+  <button class="signout-btn" id="signoutBtn">Sign Out</button>
+</div>
+
+<div class="container">
+  <div class="loading" id="loadingState">Loading your team...</div>
+  <div id="teamsContainer"></div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://ptofajaxaopzdwtfvfhq.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_pbucGPyxVzuK77Q3n62QNA_F8x0SzY_';
+  const API_BASE = '/api';
+
+  let currentSession = null;
+
+  // On page load, check for auth
+  window.addEventListener('load', async function() {
+    // Check for hash fragment from magic link
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      await handleAuthCallback(hash);
+    } else {
+      await checkSession();
+    }
+  });
+
+  async function handleAuthCallback(hash) {
+    const params = new URLSearchParams(hash.substring(1));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (accessToken) {
+      sessionStorage.setItem('wsg_access_token', accessToken);
+      sessionStorage.setItem('wsg_refresh_token', refreshToken);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      await loadDashboard(accessToken);
+    } else {
+      redirectToLogin();
+    }
+  }
+
+  async function checkSession() {
+    const accessToken = sessionStorage.getItem('wsg_access_token');
+    if (!accessToken) {
+      redirectToLogin();
+      return;
+    }
+    await loadDashboard(accessToken);
+  }
+
+  async function loadDashboard(accessToken) {
+    try {
+      // Get user info from Supabase
+      const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!userRes.ok) {
+        redirectToLogin();
+        return;
+      }
+
+      const user = await userRes.json();
+      const email = user.email;
+      currentSession = { accessToken, email };
+
+      document.getElementById('userEmailDisplay').textContent = email;
+
+      // Load team data
+      const res = await fetch(`${API_BASE}/dashboard?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+
+      document.getElementById('loadingState').style.display = 'none';
+
+      if (!res.ok || !data.teams || data.teams.length === 0) {
+        document.getElementById('teamsContainer').innerHTML = `
+          <div class="card no-team-card">
+            <h3>No active team found</h3>
+            <p>We couldn't find an active team subscription for ${email}.<br><br>If you believe this is an error, please contact support.</p>
+          </div>`;
+        return;
+      }
+
+      renderTeams(data.teams, email);
+    } catch (err) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('teamsContainer').innerHTML = `
+        <div class="card no-team-card">
+          <h3>Something went wrong</h3>
+          <p>Please try refreshing the page or signing in again.</p>
+        </div>`;
+    }
+  }
+
+  function renderTeams(teams, leaderEmail) {
+    const container = document.getElementById('teamsContainer');
+    container.innerHTML = '';
+
+    teams.forEach(function(team) {
+      const pct = Math.round((team.seatsUsed / team.seatLimit) * 100);
+      const isFull = team.seatsUsed >= team.seatLimit;
+      const badgeClass = team.accessType === 'subscription' ? 'badge-subscription' : 'badge-course';
+      const badgeLabel = team.accessType === 'subscription' ? 'Subscription Team' : 'Course Team';
+
+      const membersHTML = team.members.length === 0
+        ? '<div class="empty-members">No members added yet. Share your invite link or add members below!</div>'
+        : team.members.map(function(m) {
+            return '<div class="member-row">' +
+              '<div>' +
+                '<div class="member-email">' + m.email + '</div>' +
+                '<div class="member-date">Joined ' + new Date(m.joinedAt).toLocaleDateString() + '</div>' +
+              '</div>' +
+              '<button class="btn btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
+            '</div>';
+          }).join('');
+
+      const addMemberSection = !isFull
+        ? '<div class="add-member-section">' +
+            '<div class="members-title">Add a Member by Email</div>' +
+            '<div class="add-member-row">' +
+              '<input type="email" id="addEmail-' + team.id + '" placeholder="member@email.com" />' +
+              '<button class="btn btn-primary" data-add-team="' + team.id + '" data-token="' + (team.inviteLink ? team.inviteLink.split('token=')[1] : '') + '">Add</button>' +
+            '</div>' +
+            '<div class="error-msg" id="addError-' + team.id + '"></div>' +
+          '</div>'
+        : '<div class="add-member-section"><p style="color:#dc2626;font-size:0.88rem;">⚠️ Team is full. Contact support to add more seats.</p></div>';
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML =
+        '<div class="team-header">' +
+          '<div class="team-title">' + badgeLabel + '</div>' +
+          '<span class="badge ' + badgeClass + '">' + team.seatsUsed + '/' + team.seatLimit + ' seats used</span>' +
+        '</div>' +
+        '<div class="seats-bar-wrap">' +
+          '<div class="seats-label">' + (isFull ? '⚠️ Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
+          '<div class="seats-bar"><div class="seats-fill ' + (isFull ? 'full' : '') + '" style="width:' + pct + '%"></div></div>' +
+        '</div>' +
+        '<div class="invite-section">' +
+          '<div class="invite-label">Your Invite Link</div>' +
+          '<div class="invite-link-row">' +
+            '<div class="invite-link-text" id="link-' + team.id + '">' + (team.inviteLink || 'No invite link available') + '</div>' +
+            '<button class="btn btn-copy" data-copy="' + team.id + '">Copy</button>' +
+          '</div>' +
+          '<div class="copied" id="copied-' + team.id + '" style="display:none">✓ Copied!</div>' +
+        '</div>' +
+        '<div class="members-title">Team Members</div>' +
+        '<div id="members-' + team.id + '">' + membersHTML + '</div>' +
+        addMemberSection;
+
+      container.appendChild(card);
+    });
+
+    // Attach event listeners
+    container.querySelectorAll('[data-copy]').forEach(function(btn) {
+      btn.addEventListener('click', function() { copyLink(btn.getAttribute('data-copy')); });
+    });
+
+    container.querySelectorAll('[data-add-team]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        addMember(btn.getAttribute('data-add-team'), btn.getAttribute('data-token'));
+      });
+    });
+
+    container.querySelectorAll('[data-team]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        removeMember(btn.getAttribute('data-team'), btn.getAttribute('data-email'));
+      });
+    });
+  }
+
+  async function addMember(teamId, token) {
+    const emailInput = document.getElementById('addEmail-' + teamId);
+    const errorEl = document.getElementById('addError-' + teamId);
+    const email = emailInput.value.trim();
+    errorEl.textContent = '';
+
+    if (!email) { errorEl.textContent = 'Please enter an email.'; return; }
+
+    try {
+      const res = await fetch(API_BASE + '/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token, memberEmail: email })
+      });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.error; return; }
+      await loadDashboard(currentSession.accessToken);
+    } catch (e) {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+    }
+  }
+
+  async function removeMember(teamId, memberEmail) {
+    if (!confirm('Remove ' + memberEmail + ' from this team?')) return;
+    try {
+      const res = await fetch(API_BASE + '/remove-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId: teamId, memberEmail: memberEmail })
+      });
+      if (res.ok) await loadDashboard(currentSession.accessToken);
+    } catch (e) {
+      alert('Something went wrong. Please try again.');
+    }
+  }
+
+  function copyLink(teamId) {
+    const text = document.getElementById('link-' + teamId).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      document.getElementById('copied-' + teamId).style.display = 'block';
+      setTimeout(function() {
+        document.getElementById('copied-' + teamId).style.display = 'none';
+      }, 2000);
+    });
+  }
+
+  function redirectToLogin() {
+    sessionStorage.removeItem('wsg_access_token');
+    sessionStorage.removeItem('wsg_refresh_token');
+    window.location.href = '/';
+  }
+
+  document.getElementById('signoutBtn').addEventListener('click', function() {
+    redirectToLogin();
+  });
+</script>
+
+</body>
+</html>
