@@ -332,7 +332,7 @@
       const res = await fetch(API_BASE + '/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token, memberEmail: email })
+        body: JSON.stringify({ token: token, memberEmail: email, addedByLeader: true })
       });
       const data = await res.json();
       if (!res.ok) { errorEl.textContent = data.error; return; }
