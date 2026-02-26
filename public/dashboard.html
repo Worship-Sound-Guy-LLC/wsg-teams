@@ -153,6 +153,8 @@
     .support-link { display: block; margin-top: 16px; font-size: 0.83rem; color: #555; }
     .support-link a { color: #1a8cff; text-decoration: none; }
     .support-link a:hover { text-decoration: underline; }
+    .btn-sync { background: #1a1a1a; color: #888; border: 1px solid #333; font-size: 0.82rem; padding: 7px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+    .btn-sync:hover { border-color: #1a8cff; color: #1a8cff; }
   </style>
 </head>
 <body>
@@ -274,6 +276,7 @@
             '</div>';
           }).join('');
 
+      const syncButton = '<button class="btn btn-sync" data-sync-team="' + team.id + '">↻ Sync Status</button>';
       const addMemberSection = !isFull
         ? '<div class="add-member-section">' +
             '<div class="section-label">Add a Member by Email</div>' +
@@ -296,6 +299,7 @@
           '<div class="seats-label">' + (isFull ? '⚠️ Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
           '<div class="seats-bar"><div class="seats-fill ' + (isFull ? 'full' : '') + '" style="width:' + pct + '%"></div></div>' +
         '</div>' +
+        '<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">' + syncButton + '</div>' +
         '<div class="invite-section">' +
           '<div class="invite-label">Your Invite Link</div>' +
           '<div class="invite-link-row">' +
@@ -311,6 +315,9 @@
       container.appendChild(card);
     });
 
+    container.querySelectorAll('[data-sync-team]').forEach(function(btn) {
+    btn.addEventListener('click', function() { syncStatus(btn.getAttribute('data-sync-team'), btn); });
+    });
     container.querySelectorAll('[data-copy]').forEach(function(btn) {
       btn.addEventListener('click', function() { copyLink(btn.getAttribute('data-copy')); });
     });
@@ -353,6 +360,23 @@
       if (res.ok) await loadDashboard(currentSession.accessToken);
     } catch (e) { alert('Something went wrong. Please try again.'); }
   }
+
+  async function syncStatus(teamId, btn) {
+  btn.textContent = 'Syncing...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(API_BASE + '/sync-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamId: teamId })
+    });
+    const data = await res.json();
+    await loadDashboard(currentSession.accessToken);
+  } catch (e) {
+    btn.textContent = '↻ Sync Status';
+    btn.disabled = false;
+  }
+}
 
   function copyLink(teamId) {
     const text = document.getElementById('link-' + teamId).textContent;
