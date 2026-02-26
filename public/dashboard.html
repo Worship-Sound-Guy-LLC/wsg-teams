@@ -298,8 +298,7 @@
         '<div class="seats-bar-wrap">' +
           '<div class="seats-label">' + (isFull ? '⚠️ Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
           '<div class="seats-bar"><div class="seats-fill ' + (isFull ? 'full' : '') + '" style="width:' + pct + '%"></div></div>' +
-        '</div>' +
-        '<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">' + syncButton + '</div>' +
+        '</div>' 
         '<div class="invite-section">' +
           '<div class="invite-label">Your Invite Link</div>' +
           '<div class="invite-link-row">' +
@@ -308,7 +307,10 @@
           '</div>' +
           '<div class="copied" id="copied-' + team.id + '" style="display:none">✓ Copied!</div>' +
         '</div>' +
-        '<div class="section-label">Team Members</div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
+        '<div class="section-label" style="margin-bottom:0;">Team Members</div>' +
+        '<button class="btn btn-sync" data-sync-team="' + team.id + '">↻ Check Status</button>' +
+          '</div>' +
         '<div id="members-' + team.id + '">' + membersHTML + '</div>' +
         addMemberSection;
 
