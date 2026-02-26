@@ -3,178 +3,166 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WSG Central Team Dashboard</title>
+  <title>WSG | CENTRAL — Team Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f5f5f5;
-      color: #333;
+      background: #111111;
+      color: #fff;
       min-height: 100vh;
     }
     .header {
-      background: #1a1a2e;
-      color: white;
-      padding: 20px 24px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 16px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .header h1 { font-size: 1.3rem; font-weight: 600; }
-    .header p { font-size: 0.85rem; opacity: 0.7; }
+    .header img { height: 28px; width: auto; }
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .user-email { font-size: 0.8rem; color: #666; }
     .signout-btn {
-      background: rgba(255,255,255,0.15);
-      color: white;
-      border: none;
-      padding: 8px 16px;
+      background: transparent;
+      color: #999;
+      border: 1px solid #333;
+      padding: 6px 14px;
       border-radius: 6px;
       cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      transition: all 0.2s;
     }
-    .signout-btn:hover { background: rgba(255,255,255,0.25); }
-    .container { max-width: 700px; margin: 0 auto; padding: 24px 16px; }
+    .signout-btn:hover { border-color: #666; color: white; }
+    .container { max-width: 700px; margin: 0 auto; padding: 32px 16px; }
     .card {
-      background: white;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
       border-radius: 12px;
       padding: 24px;
       margin-bottom: 20px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
     .btn {
       display: inline-block;
-      padding: 12px 20px;
+      padding: 10px 18px;
       border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 500;
+      font-size: 0.9rem;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      transition: opacity 0.2s;
+      transition: all 0.2s;
       text-align: center;
     }
-    .btn:hover { opacity: 0.88; }
-    .btn-primary { background: #4f46e5; color: white; }
-    .btn-copy { background: #f0f0f0; color: #333; font-size: 0.85rem; padding: 8px 14px; }
-    .btn-remove { background: #fee2e2; color: #dc2626; font-size: 0.8rem; padding: 6px 12px; }
-    .team-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-    .team-title { font-size: 1.05rem; font-weight: 600; }
+    .btn-primary { background: #1a8cff; color: white; }
+    .btn-primary:hover { background: #0077ee; }
+    .btn-copy { background: #2a2a2a; color: #ccc; font-size: 0.82rem; padding: 7px 14px; }
+    .btn-copy:hover { background: #333; color: white; }
+    .btn-remove { background: transparent; color: #ff4444; border: 1px solid #3a1a1a; font-size: 0.8rem; padding: 5px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+    .btn-remove:hover { background: #2a1010; }
+    .team-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .team-title { font-size: 1.1rem; font-weight: 700; }
     .badge {
       display: inline-block;
-      padding: 3px 10px;
+      padding: 4px 12px;
       border-radius: 20px;
       font-size: 0.75rem;
-      font-weight: 500;
+      font-weight: 600;
+      letter-spacing: 0.03em;
     }
-    .badge-subscription { background: #ede9fe; color: #6d28d9; }
-    .badge-course { background: #d1fae5; color: #065f46; }
-    .seats-bar-wrap { margin-bottom: 16px; }
-    .seats-label { font-size: 0.85rem; color: #666; margin-bottom: 6px; }
-    .seats-bar { background: #e5e7eb; border-radius: 99px; height: 8px; overflow: hidden; }
-    .seats-fill { background: #4f46e5; height: 100%; border-radius: 99px; transition: width 0.4s; }
-    .seats-fill.full { background: #dc2626; }
-    .invite-section { background: #f8f8ff; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
-    .invite-label { font-size: 0.8rem; color: #666; margin-bottom: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-subscription { background: #0d2a4a; color: #1a8cff; }
+    .badge-course { background: #0d3320; color: #22c55e; }
+    .seats-bar-wrap { margin-bottom: 20px; }
+    .seats-label { font-size: 0.83rem; color: #888; margin-bottom: 8px; }
+    .seats-bar { background: #2a2a2a; border-radius: 99px; height: 6px; overflow: hidden; }
+    .seats-fill { background: #1a8cff; height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .seats-fill.full { background: #ff4444; }
+    .invite-section { background: #111; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .invite-label { font-size: 0.75rem; color: #666; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
     .invite-link-row { display: flex; gap: 8px; align-items: center; }
     .invite-link-text {
       flex: 1;
       font-size: 0.82rem;
-      color: #4f46e5;
-      background: white;
-      border: 1px solid #ddd;
+      color: #1a8cff;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
       border-radius: 6px;
-      padding: 7px 10px;
+      padding: 8px 12px;
       word-break: break-all;
     }
-    .members-title { font-size: 0.85rem; font-weight: 600; color: #666; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .section-label { font-size: 0.75rem; font-weight: 600; color: #666; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
     .member-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid #f0f0f0;
+      padding: 12px 0;
+      border-bottom: 1px solid #222;
     }
     .member-row:last-child { border-bottom: none; }
-    .member-email { font-size: 0.9rem; }
-    .member-date { font-size: 0.78rem; color: #999; margin-top: 2px; }
-    .empty-members { color: #999; font-size: 0.88rem; text-align: center; padding: 16px 0; }
-    .error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
-    .loading { text-align: center; color: #999; padding: 40px; }
-    .add-member-section { margin-top: 16px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
-    .add-member-row { display: flex; gap: 8px; }
-    .add-member-row input[type="email"] {
-      flex: 1;
-      padding: 10px 14px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      outline: none;
-    }
-    .add-member-row input[type="email"]:focus { border-color: #4f46e5; }
-    .copied { color: #16a34a; font-size: 0.8rem; margin-top: 4px; }
-    .member-info { display: flex; flex-direction: column; gap: 2px; }
+    .member-info { display: flex; flex-direction: column; gap: 4px; }
+    .member-email { font-size: 0.9rem; color: #eee; }
     .member-status {
-      font-size: 0.75rem;
-      font-weight: 500;
+      font-size: 0.72rem;
+      font-weight: 600;
       padding: 2px 8px;
       border-radius: 20px;
       display: inline-block;
       width: fit-content;
+      letter-spacing: 0.03em;
     }
-    .invited { background: #fef9c3; color: #854d0e; }
-    .viewed  { background: #dbeafe; color: #1e40af; }
-    .active  { background: #dcfce7; color: #166534; }
+    .invited { background: #2a2200; color: #f59e0b; }
+    .viewed  { background: #0d2040; color: #60a5fa; }
+    .active  { background: #0d2a18; color: #22c55e; }
+    .empty-members { color: #555; font-size: 0.88rem; text-align: center; padding: 20px 0; }
+    .error-msg { color: #ff4444; font-size: 0.85rem; margin-top: 8px; }
+    .loading { text-align: center; color: #555; padding: 60px; }
+    .add-member-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #222; }
+    .add-member-row { display: flex; gap: 8px; }
+    .add-member-row input[type="email"] {
+      flex: 1;
+      padding: 10px 14px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: white;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .add-member-row input[type="email"]::placeholder { color: #444; }
+    .add-member-row input[type="email"]:focus { border-color: #1a8cff; }
+    .copied { color: #22c55e; font-size: 0.8rem; margin-top: 6px; }
 
     /* No team state */
-    .no-team-card {
-      text-align: center;
-      padding: 48px 24px;
-    }
-    .no-team-icon {
-      font-size: 3rem;
-      margin-bottom: 16px;
-    }
-    .no-team-card h3 {
-      font-size: 1.3rem;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: #1a1a2e;
-    }
-    .no-team-card p {
-      color: #666;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      max-width: 420px;
-      margin: 0 auto 24px;
-    }
-    .no-team-card .btn-upgrade {
-      background: #4f46e5;
+    .no-team-card { text-align: center; padding: 56px 24px; }
+    .no-team-icon { font-size: 3rem; margin-bottom: 20px; }
+    .no-team-card h3 { font-size: 1.4rem; font-weight: 700; margin-bottom: 12px; }
+    .no-team-card p { color: #888; font-size: 0.95rem; line-height: 1.7; max-width: 400px; margin: 0 auto 28px; }
+    .btn-upgrade {
+      background: #1a8cff;
       color: white;
-      padding: 14px 28px;
+      padding: 14px 32px;
       border-radius: 8px;
       font-size: 1rem;
-      font-weight: 600;
+      font-weight: 700;
       text-decoration: none;
       display: inline-block;
-      transition: opacity 0.2s;
+      transition: background 0.2s;
+      letter-spacing: 0.02em;
     }
-    .no-team-card .btn-upgrade:hover { opacity: 0.88; }
-    .no-team-card .support-link {
-      display: block;
-      margin-top: 14px;
-      font-size: 0.85rem;
-      color: #999;
-    }
-    .no-team-card .support-link a { color: #4f46e5; text-decoration: none; }
-    .no-team-card .support-link a:hover { text-decoration: underline; }
+    .btn-upgrade:hover { background: #0077ee; }
+    .support-link { display: block; margin-top: 16px; font-size: 0.83rem; color: #555; }
+    .support-link a { color: #1a8cff; text-decoration: none; }
+    .support-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <div>
-    <h1>WSG Central Team Dashboard</h1>
-    <p id="userEmailDisplay">Manage your team members</p>
+  <img src="/WSG Central Logo_lite.png" alt="WSG | CENTRAL" />
+  <div class="header-right">
+    <span class="user-email" id="userEmailDisplay"></span>
+    <button class="signout-btn" id="signoutBtn">Sign Out</button>
   </div>
-  <button class="signout-btn" id="signoutBtn">Sign Out</button>
 </div>
 
 <div class="container">
@@ -220,26 +208,16 @@
 
   async function checkSession() {
     const accessToken = sessionStorage.getItem('wsg_access_token');
-    if (!accessToken) {
-      redirectToLogin();
-      return;
-    }
+    if (!accessToken) { redirectToLogin(); return; }
     await loadDashboard(accessToken);
   }
 
   async function loadDashboard(accessToken) {
     try {
       const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${accessToken}`
-        }
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` }
       });
-
-      if (!userRes.ok) {
-        redirectToLogin();
-        return;
-      }
+      if (!userRes.ok) { redirectToLogin(); return; }
 
       const user = await userRes.json();
       const email = user.email;
@@ -248,15 +226,14 @@
 
       const res = await fetch(`${API_BASE}/dashboard?email=${encodeURIComponent(email)}`);
       const data = await res.json();
-
       document.getElementById('loadingState').style.display = 'none';
 
       if (!res.ok || !data.teams || data.teams.length === 0) {
         document.getElementById('teamsContainer').innerHTML = `
           <div class="card no-team-card">
             <div class="no-team-icon">👥</div>
-            <h3>Uh Oh! No active team subscription found</h3>
-            <p>We couldn't find an active WSG teams subscription for <strong>${email}</strong>. Get started by purchasing a team plan to manage your crew's access to WSG Central.</p>
+            <h3>No active team subscription found</h3>
+            <p>We couldn't find an active WSG Central team subscription for <strong>${email}</strong>. Get started by purchasing a team plan.</p>
             <a href="https://worshipsoundguy.com/central/" class="btn-upgrade">View Team Plans →</a>
             <span class="support-link">Already purchased? <a href="mailto:support@worshipsoundguy.com">Contact support</a></span>
           </div>`;
@@ -293,20 +270,20 @@
                 '<div class="member-email">' + m.email + '</div>' +
                 '<div class="member-status ' + (m.invite_status || 'invited') + '">' + getStatusLabel(m.invite_status) + '</div>' +
               '</div>' +
-              '<button class="btn btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
+              '<button class="btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
             '</div>';
           }).join('');
 
       const addMemberSection = !isFull
         ? '<div class="add-member-section">' +
-            '<div class="members-title">Add a Member by Email</div>' +
+            '<div class="section-label">Add a Member by Email</div>' +
             '<div class="add-member-row">' +
               '<input type="email" id="addEmail-' + team.id + '" placeholder="member@email.com" />' +
               '<button class="btn btn-primary" data-add-team="' + team.id + '" data-token="' + (team.inviteLink ? team.inviteLink.split('token=')[1] : '') + '">Add</button>' +
             '</div>' +
             '<div class="error-msg" id="addError-' + team.id + '"></div>' +
           '</div>'
-        : '<div class="add-member-section"><p style="color:#dc2626;font-size:0.88rem;">⚠️ Team is full. Contact support to add more seats.</p></div>';
+        : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">⚠️ Team is full. Contact support to add more seats.</p></div>';
 
       const card = document.createElement('div');
       card.className = 'card';
@@ -327,7 +304,7 @@
           '</div>' +
           '<div class="copied" id="copied-' + team.id + '" style="display:none">✓ Copied!</div>' +
         '</div>' +
-        '<div class="members-title">Team Members</div>' +
+        '<div class="section-label">Team Members</div>' +
         '<div id="members-' + team.id + '">' + membersHTML + '</div>' +
         addMemberSection;
 
@@ -337,17 +314,11 @@
     container.querySelectorAll('[data-copy]').forEach(function(btn) {
       btn.addEventListener('click', function() { copyLink(btn.getAttribute('data-copy')); });
     });
-
     container.querySelectorAll('[data-add-team]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        addMember(btn.getAttribute('data-add-team'), btn.getAttribute('data-token'));
-      });
+      btn.addEventListener('click', function() { addMember(btn.getAttribute('data-add-team'), btn.getAttribute('data-token')); });
     });
-
     container.querySelectorAll('[data-team]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        removeMember(btn.getAttribute('data-team'), btn.getAttribute('data-email'));
-      });
+      btn.addEventListener('click', function() { removeMember(btn.getAttribute('data-team'), btn.getAttribute('data-email')); });
     });
   }
 
@@ -380,18 +351,14 @@
         body: JSON.stringify({ teamId: teamId, memberEmail: memberEmail })
       });
       if (res.ok) await loadDashboard(currentSession.accessToken);
-    } catch (e) {
-      alert('Something went wrong. Please try again.');
-    }
+    } catch (e) { alert('Something went wrong. Please try again.'); }
   }
 
   function copyLink(teamId) {
     const text = document.getElementById('link-' + teamId).textContent;
     navigator.clipboard.writeText(text).then(function() {
       document.getElementById('copied-' + teamId).style.display = 'block';
-      setTimeout(function() {
-        document.getElementById('copied-' + teamId).style.display = 'none';
-      }, 2000);
+      setTimeout(function() { document.getElementById('copied-' + teamId).style.display = 'none'; }, 2000);
     });
   }
 
@@ -401,9 +368,7 @@
     window.location.href = '/';
   }
 
-  document.getElementById('signoutBtn').addEventListener('click', function() {
-    redirectToLogin();
-  });
+  document.getElementById('signoutBtn').addEventListener('click', redirectToLogin);
 </script>
 
 </body>
