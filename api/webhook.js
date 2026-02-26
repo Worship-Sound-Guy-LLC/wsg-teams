@@ -9,7 +9,6 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
-// Your Stripe product IDs - update these to match your actual product IDs
 const TEAM_SUBSCRIPTION_PRODUCT_ID = 'prod_U2vN9o0joPvgXD';
 const INDIVIDUAL_SUBSCRIPTION_PRODUCT_ID = 'prod_U2vMxPzXlXydBn';
 
@@ -73,10 +72,9 @@ async function handleSubscriptionCreated(subscription) {
   const customer = await stripe.customers.retrieve(subscription.customer);
   const leaderEmail = customer.email;
 
-  // Generate invite token
-  const inviteToken = crypto.randomBytes(32).toString('hex');
+  // Generate short invite token (8 hex characters)
+  const inviteToken = crypto.randomBytes(4).toString('hex');
 
-  // Create team record in Supabase
   const { data: team, error } = await supabase
     .from('teams')
     .insert({
@@ -95,14 +93,12 @@ async function handleSubscriptionCreated(subscription) {
     throw error;
   }
 
-  // Create invite token
   await supabase.from('invite_tokens').insert({
     team_id: team.id,
     token: inviteToken,
     used: false
   });
 
-  // Tag leader in Circle
   await tagCircleMember(leaderEmail, 'team-leader-subscription');
 
   console.log(`Team created for ${leaderEmail}, token: ${inviteToken}`);
@@ -120,25 +116,21 @@ async function handleSubscriptionDeleted(subscription) {
     return;
   }
 
-  // Get all active members
   const { data: members } = await supabase
     .from('team_members')
     .select('id, member_email, member_circle_id')
     .eq('team_id', team.id)
     .eq('status', 'active');
 
-  // Remove each member from Circle
   for (const member of members || []) {
     await removeCircleMember(member.member_circle_id);
   }
 
-  // Revoke all members in Supabase
   await supabase
     .from('team_members')
     .update({ status: 'revoked' })
     .eq('team_id', team.id);
 
-  // Revoke the team itself
   const { error: updateError } = await supabase
     .from('teams')
     .update({ status: 'revoked' })
@@ -155,7 +147,6 @@ async function handleSubscriptionDeleted(subscription) {
 async function handleSubscriptionUpdated(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
   
-  // Check if this is an upgrade from individual to team
   if (productId === TEAM_SUBSCRIPTION_PRODUCT_ID) {
     const { data: existingTeam } = await supabase
       .from('teams')
@@ -164,11 +155,9 @@ async function handleSubscriptionUpdated(subscription) {
       .single();
 
     if (!existingTeam) {
-      // New team from upgrade - treat like a new subscription
       const updatedSub = { ...subscription, customer: subscription.customer };
       await handleSubscriptionCreated(updatedSub);
       
-      // Mark as converted from individual
       await supabase
         .from('teams')
         .update({ converted_from_individual: true, converted_at: new Date().toISOString() })
@@ -178,7 +167,6 @@ async function handleSubscriptionUpdated(subscription) {
 }
 
 async function tagCircleMember(email, tagSlug) {
-  // First find the member by email
   const searchRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members?email=${encodeURIComponent(email)}&community_id=${CIRCLE_COMMUNITY_ID}`,
     { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
