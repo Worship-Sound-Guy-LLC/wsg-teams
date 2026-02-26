@@ -1,7 +1,16 @@
 {
   "rewrites": [
-    { "source": "/join", "destination": "/public/join.html" },
-    { "source": "/dashboard", "destination": "/public/dashboard.html" },
-    { "source": "/", "destination": "/public/index.html" }
+    {
+      "source": "/join",
+      "destination": "/join.html"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/dashboard.html"
+    },
+    {
+      "source": "/",
+      "destination": "/index.html"
+    }
   ]
 }
