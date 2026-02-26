@@ -153,7 +153,7 @@
     .support-link { display: block; margin-top: 16px; font-size: 0.83rem; color: #555; }
     .support-link a { color: #1a8cff; text-decoration: none; }
     .support-link a:hover { text-decoration: underline; }
-    .btn-sync { background: #1a1a1a; color: #888; border: 1px solid #333; font-size: 0.82rem; padding: 7px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+    .btn-sync { background: #1a1a1a; color: #888; border: 1px solid #333; font-size: 0.82rem; font-weight: 100; padding: 7px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
     .btn-sync:hover { border-color: #1a8cff; color: #1a8cff; }
   </style>
 </head>
@@ -309,7 +309,7 @@
         '</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
         '<div class="section-label" style="margin-bottom:0;">Team Members</div>' +
-        '<button class="btn btn-sync" data-sync-team="' + team.id + '">↻ Check Status</button>' +
+        '<button class="btn btn-sync" data-sync-team="' + team.id + '">Check Enrollment Status</button>' +
           '</div>' +
         '<div id="members-' + team.id + '">' + membersHTML + '</div>' +
         addMemberSection;
