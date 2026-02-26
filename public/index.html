@@ -98,6 +98,12 @@
 </div>
 
 <script>
+
+// If magic link landed here instead of dashboard, redirect with token
+if (window.location.hash && window.location.hash.includes('access_token')) {
+  window.location.href = '/dashboard.html' + window.location.hash;
+}
+  
   const SUPABASE_URL = 'https://ptofajaxaopzdwtfvfhq.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_pbucGPyxVzuK77Q3n62QNA_F8x0SzY_';
 
