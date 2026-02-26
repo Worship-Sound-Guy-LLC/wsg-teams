@@ -66,7 +66,7 @@ await supabase.from('team_members').insert({
   member_email: memberEmail.toLowerCase(),
   member_circle_id: circleId,
   status: 'active',
-  invite_status: 'active'
+  invite_status: req.body.addedByLeader ? 'invited' : 'active'
 });
 
   // Mark token as used (single-use tokens only — for shareable links we skip this)
