@@ -61,12 +61,13 @@ export default async function handler(req, res) {
   const circleId = await addCircleMember(memberEmail, team.access_type);
 
   // Add member to Supabase
-  await supabase.from('team_members').insert({
-    team_id: team.id,
-    member_email: memberEmail.toLowerCase(),
-    member_circle_id: circleId,
-    status: 'active'
-  });
+await supabase.from('team_members').insert({
+  team_id: team.id,
+  member_email: memberEmail.toLowerCase(),
+  member_circle_id: circleId,
+  status: 'active',
+  invite_status: 'active'
+});
 
   // Mark token as used (single-use tokens only — for shareable links we skip this)
   // await supabase.from('invite_tokens').update({ used: true, used_at: new Date().toISOString() }).eq('id', invite.id);
