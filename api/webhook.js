@@ -109,13 +109,13 @@ async function handleSubscriptionCreated(subscription) {
 }
 
 async function handleSubscriptionDeleted(subscription) {
-  const { data: team } = await supabase
+  const { data: team, error: teamError } = await supabase
     .from('teams')
     .select('id')
     .eq('stripe_subscription_id', subscription.id)
     .single();
 
-  if (!team) {
+  if (teamError || !team) {
     console.log('No team found for subscription:', subscription.id);
     return;
   }
@@ -123,7 +123,7 @@ async function handleSubscriptionDeleted(subscription) {
   // Get all active members
   const { data: members } = await supabase
     .from('team_members')
-    .select('member_email, member_circle_id')
+    .select('id, member_email, member_circle_id')
     .eq('team_id', team.id)
     .eq('status', 'active');
 
@@ -138,11 +138,16 @@ async function handleSubscriptionDeleted(subscription) {
     .update({ status: 'revoked' })
     .eq('team_id', team.id);
 
-  // Revoke team
-  await supabase
+  // Revoke the team itself
+  const { error: updateError } = await supabase
     .from('teams')
     .update({ status: 'revoked' })
     .eq('id', team.id);
+
+  if (updateError) {
+    console.error('Error revoking team:', updateError);
+    throw updateError;
+  }
 
   console.log(`Team ${team.id} revoked, ${members?.length || 0} members removed`);
 }
