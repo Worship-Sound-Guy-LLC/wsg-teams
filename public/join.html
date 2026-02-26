@@ -3,116 +3,124 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Join WSG Team</title>
+  <title>WSG | CENTRAL — Join Your Team</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #f5f5f5;
-      color: #333;
+      background: #111111;
+      color: #fff;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
     .header {
-      background: #1a1a2e;
-      color: white;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
       padding: 20px 24px;
+      display: flex;
+      align-items: center;
     }
-    .header h1 { font-size: 1.3rem; font-weight: 600; }
-    .header p { font-size: 0.85rem; opacity: 0.7; }
-    .container {
-      max-width: 480px;
-      margin: 60px auto;
-      padding: 0 16px;
-      width: 100%;
+    .header img { height: 32px; width: auto; }
+    .main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
     }
     .card {
-      background: white;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
       border-radius: 12px;
-      padding: 32px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 460px;
     }
     .invite-badge {
       display: inline-block;
-      background: #ede9fe;
-      color: #6d28d9;
-      padding: 4px 12px;
+      background: #0d2a4a;
+      color: #1a8cff;
+      padding: 4px 14px;
       border-radius: 20px;
-      font-size: 0.78rem;
-      font-weight: 500;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
       margin-bottom: 16px;
     }
-    .card-title { font-size: 1.3rem; font-weight: 600; margin-bottom: 8px; }
-    .card-subtitle { color: #666; font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5; }
+    .card-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 10px; line-height: 1.3; }
+    .card-subtitle { color: #888; font-size: 0.9rem; margin-bottom: 28px; line-height: 1.6; }
     input[type="email"] {
       width: 100%;
-      padding: 12px 14px;
-      border: 1px solid #ddd;
+      padding: 13px 16px;
+      background: #111;
+      border: 1px solid #333;
       border-radius: 8px;
       font-size: 1rem;
+      color: white;
       margin-bottom: 12px;
       outline: none;
       transition: border-color 0.2s;
     }
-    input[type="email"]:focus { border-color: #4f46e5; }
+    input[type="email"]::placeholder { color: #555; }
+    input[type="email"]:focus { border-color: #1a8cff; }
     .btn {
       width: 100%;
-      padding: 12px 20px;
+      padding: 13px 20px;
       border-radius: 8px;
       font-size: 0.95rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      background: #4f46e5;
+      background: #1a8cff;
       color: white;
-      transition: opacity 0.2s;
+      transition: background 0.2s;
+      letter-spacing: 0.02em;
     }
-    .btn:hover { opacity: 0.88; }
+    .btn:hover { background: #0077ee; }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
+    .error-msg { color: #ff4444; font-size: 0.85rem; margin-top: 8px; }
     .success-box {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
+      background: #0d2a18;
+      border: 1px solid #1a4a2a;
       border-radius: 8px;
-      padding: 24px;
+      padding: 28px;
       text-align: center;
       display: none;
     }
     .success-box .checkmark { font-size: 2.5rem; margin-bottom: 12px; }
-    .success-box h3 { color: #16a34a; margin-bottom: 8px; font-size: 1.1rem; }
-    .success-box p { color: #555; font-size: 0.9rem; line-height: 1.5; }
+    .success-box h3 { color: #22c55e; margin-bottom: 8px; font-size: 1.1rem; }
+    .success-box p { color: #888; font-size: 0.9rem; line-height: 1.6; }
     .error-box {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
+      background: #2a0d0d;
+      border: 1px solid #4a1a1a;
       border-radius: 8px;
-      padding: 24px;
+      padding: 28px;
       text-align: center;
       display: none;
     }
-    .error-box h3 { color: #dc2626; margin-bottom: 8px; }
-    .error-box p { color: #555; font-size: 0.9rem; line-height: 1.5; }
-    .loading-state { text-align: center; padding: 40px; color: #999; display: none; }
+    .error-box h3 { color: #ff4444; margin-bottom: 8px; }
+    .error-box p { color: #888; font-size: 0.9rem; line-height: 1.6; }
+    .loading-state { text-align: center; padding: 40px; color: #555; display: none; }
+    .footer { text-align: center; padding: 24px; color: #444; font-size: 0.8rem; }
+    .footer a { color: #1a8cff; text-decoration: none; }
   </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>WSG Team Dashboard</h1>
-  <p>Worship Sound Guy Community</p>
+  <img src="/WSG Central Logo_lite.png" alt="WSG | CENTRAL" />
 </div>
 
-<div class="container">
+<div class="main">
   <div class="card">
-
-    <div id="loadingState" class="loading-state">
-      Validating invite...
-    </div>
+    <div id="loadingState" class="loading-state">Validating invite...</div>
 
     <div id="joinForm" style="display:none">
-      <div class="invite-badge">🎉 You've been invited!</div>
-      <div class="card-title">Join your WSG Team</div>
-      <div class="card-subtitle">Your team leader has invited you to join their WSG Central team. Enter your email address to accept the invitation and get access to the community.</div>
+      <div class="invite-badge">🎉 You're invited</div>
+      <div class="card-title">Join your WSG Central team</div>
+      <div class="card-subtitle">Your team leader has invited you to join their WSG Central team. Enter your email to accept the invitation and get access to the community.</div>
       <input type="email" id="emailInput" placeholder="your@email.com" />
       <div class="error-msg" id="errorMsg"></div>
       <button class="btn" id="joinBtn">Accept Invitation</button>
@@ -121,21 +129,22 @@
     <div class="success-box" id="successBox">
       <div class="checkmark">🎉</div>
       <h3>You're in!</h3>
-      <p>You've successfully joined the WSG team. Check your email for an invitation to the Circle community — you'll be able to access all your content there.</p>
+      <p>You've successfully joined the WSG Central team. Check your email for an invitation to the community — you'll have full access to all your content there.</p>
     </div>
 
     <div class="error-box" id="errorBox">
-      <h3>Invite issue</h3>
+      <h3>Invalid invite</h3>
       <p id="errorBoxMsg">This invite link is invalid or has expired. Please contact your team leader for a new invite link.</p>
     </div>
-
   </div>
+</div>
+
+<div class="footer">
+  Need help? <a href="mailto:support@worshipsoundguy.com">Contact support</a>
 </div>
 
 <script>
   const API_BASE = '/api';
-
-  // Get token from URL
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
 
@@ -144,11 +153,7 @@
       showError('No invite token found. Please use the full invite link provided by your team leader.');
       return;
     }
-
-    // Mark invite as viewed
     markAsViewed(token);
-
-    // Show the join form
     document.getElementById('loadingState').style.display = 'none';
     document.getElementById('joinForm').style.display = 'block';
   });
@@ -160,9 +165,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: token })
       });
-    } catch (e) {
-      // Silent fail — viewing is tracked best-effort
-    }
+    } catch (e) {}
   }
 
   document.getElementById('joinBtn').addEventListener('click', acceptInvite);
@@ -174,13 +177,9 @@
     const email = document.getElementById('emailInput').value.trim();
     const errorMsg = document.getElementById('errorMsg');
     const btn = document.getElementById('joinBtn');
-
     errorMsg.textContent = '';
 
-    if (!email) {
-      errorMsg.textContent = 'Please enter your email address.';
-      return;
-    }
+    if (!email) { errorMsg.textContent = 'Please enter your email address.'; return; }
 
     btn.disabled = true;
     btn.textContent = 'Joining...';
@@ -191,9 +190,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: token, memberEmail: email })
       });
-
       const data = await res.json();
-
       if (res.ok) {
         document.getElementById('joinForm').style.display = 'none';
         document.getElementById('successBox').style.display = 'block';
