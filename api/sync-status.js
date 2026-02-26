@@ -5,13 +5,16 @@ const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
   const { teamId } = req.body;
   if (!teamId) return res.status(400).json({ error: 'Team ID required' });
 
+  // Only sync members who are active (not revoked) and not yet enrolled
   const { data: members, error } = await supabase
     .from('team_members')
     .select('id, member_email, member_circle_id')
     .eq('team_id', teamId)
+    .eq('status', 'active')
     .neq('invite_status', 'active');
 
   if (error) return res.status(500).json({ error: 'Failed to fetch members' });
@@ -27,22 +30,22 @@ export default async function handler(req, res) {
       );
       const circleData = await circleRes.json();
 
-      // Circle v2 API returns records[], not community_members[]
+      // Circle v2 returns records[], not community_members[]
       const circleMember = circleData?.records?.[0];
       if (!circleMember) continue;
 
-      // Circle v2 does NOT have invitation_status field.
-      // Use active + accepted_invitation + profile_confirmed_at instead.
+      // Circle v2 fields:
+      // active + accepted_invitation = fully enrolled (profile complete)
+      // accepted_invitation only = clicked link, profile not done yet
+      // neither = hasn't touched invite yet
       let newStatus = null;
 
-      if (circleMember.active === true && circleMember.accepted_invitation) {
-        // Fully enrolled - accepted invite and is an active member
-        newStatus = 'active';
-      } else if (circleMember.profile_confirmed_at) {
-        // Created account and confirmed profile, but not fully active yet
-        newStatus = 'viewed';
+      if (circleMember.active === true && circleMember.profile_confirmed_at) {
+        newStatus = 'active'; // Enrolled - profile complete
+      } else if (circleMember.accepted_invitation) {
+        newStatus = 'opened'; // Clicked invite link but not finished
       }
-      // If neither, they haven't touched the invite yet — leave as 'invited'
+      // Otherwise leave as 'invited'
 
       if (newStatus) {
         await supabase
