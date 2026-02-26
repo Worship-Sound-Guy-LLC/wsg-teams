@@ -63,7 +63,7 @@ export default async function handler(req, res) {
 
 async function handleSubscriptionCreated(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
-  
+
   if (productId !== TEAM_SUBSCRIPTION_PRODUCT_ID) {
     console.log('Not a team subscription, skipping');
     return;
@@ -99,7 +99,8 @@ async function handleSubscriptionCreated(subscription) {
     used: false
   });
 
-  await tagCircleMember(leaderEmail, 'team-leader-subscription');
+  // Tag the leader in Circle - triggers Circle workflow for leader access
+  await addCircleTag(leaderEmail, 'TeamLeader');
 
   console.log(`Team created for ${leaderEmail}, token: ${inviteToken}`);
 }
@@ -116,21 +117,27 @@ async function handleSubscriptionDeleted(subscription) {
     return;
   }
 
+  // Get all active team members
   const { data: members } = await supabase
     .from('team_members')
     .select('id, member_email, member_circle_id')
     .eq('team_id', team.id)
     .eq('status', 'active');
 
+  // Remove TeamMember tag from each member in Circle
+  // Circle workflow will automatically remove WSG Teams access group
+  // and add Free Access access group
   for (const member of members || []) {
-    await removeCircleMember(member.member_circle_id);
+    await removeCircleTag(member.member_email, 'TeamMember');
   }
 
+  // Revoke all members in Supabase
   await supabase
     .from('team_members')
     .update({ status: 'revoked' })
     .eq('team_id', team.id);
 
+  // Revoke the team
   const { error: updateError } = await supabase
     .from('teams')
     .update({ status: 'revoked' })
@@ -141,12 +148,12 @@ async function handleSubscriptionDeleted(subscription) {
     throw updateError;
   }
 
-  console.log(`Team ${team.id} revoked, ${members?.length || 0} members removed`);
+  console.log(`Team ${team.id} revoked, ${members?.length || 0} members tags removed`);
 }
 
 async function handleSubscriptionUpdated(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
-  
+
   if (productId === TEAM_SUBSCRIPTION_PRODUCT_ID) {
     const { data: existingTeam } = await supabase
       .from('teams')
@@ -157,7 +164,7 @@ async function handleSubscriptionUpdated(subscription) {
     if (!existingTeam) {
       const updatedSub = { ...subscription, customer: subscription.customer };
       await handleSubscriptionCreated(updatedSub);
-      
+
       await supabase
         .from('teams')
         .update({ converted_from_individual: true, converted_at: new Date().toISOString() })
@@ -166,21 +173,27 @@ async function handleSubscriptionUpdated(subscription) {
   }
 }
 
-async function tagCircleMember(email, tagSlug) {
-  const searchRes = await fetch(
+// Look up a Circle member by email and return their ID
+async function getCircleMemberId(email) {
+  const res = await fetch(
     `https://app.circle.so/api/admin/v2/community_members?email=${encodeURIComponent(email)}&community_id=${CIRCLE_COMMUNITY_ID}`,
     { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
   );
-  const searchData = await searchRes.json();
-  const member = searchData?.community_members?.[0];
+  const data = await res.json();
+  // Circle v2 returns records[], not community_members[]
+  return data?.records?.[0]?.id || null;
+}
 
-  if (!member) {
+// Add a tag to a Circle member by email
+async function addCircleTag(email, tagSlug) {
+  const memberId = await getCircleMemberId(email);
+  if (!memberId) {
     console.log(`Circle member not found for email: ${email}`);
     return;
   }
 
   await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${member.id}/member_tags`,
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags`,
     {
       method: 'PUT',
       headers: {
@@ -190,16 +203,28 @@ async function tagCircleMember(email, tagSlug) {
       body: JSON.stringify({ tag_slugs: [tagSlug] })
     }
   );
+
+  console.log(`Tag "${tagSlug}" added to ${email}`);
 }
 
-async function removeCircleMember(circleId) {
-  if (!circleId) return;
-  
+// Remove a tag from a Circle member by email
+async function removeCircleTag(email, tagSlug) {
+  const memberId = await getCircleMemberId(email);
+  if (!memberId) {
+    console.log(`Circle member not found for email: ${email}`);
+    return;
+  }
+
   await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${circleId}?community_id=${CIRCLE_COMMUNITY_ID}`,
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags/${tagSlug}`,
     {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` }
+      headers: {
+        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
     }
   );
+
+  console.log(`Tag "${tagSlug}" removed from ${email}`);
 }
