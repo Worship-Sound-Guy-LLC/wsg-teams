@@ -55,7 +55,7 @@ export default async function handler(req, res) {
   }
 
   // Add member to Circle and get their Circle ID
-  const circleId = await addCircleMember(memberEmail, team.access_type);
+  const circleId = await addCircleMember(memberEmail);
 
   // Add member to Supabase
   await supabase.from('team_members').insert({
@@ -72,7 +72,8 @@ export default async function handler(req, res) {
   return res.status(200).json({ success: true, message: 'You have been added to the team!' });
 }
 
-async function addCircleMember(email, accessType) {
+async function addCircleMember(email) {
+  // Invite member to Circle community
   const inviteRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members`,
     {
@@ -92,9 +93,8 @@ async function addCircleMember(email, accessType) {
   const inviteData = await inviteRes.json();
   const circleId = inviteData?.community_member?.id;
 
-  // Tag them appropriately
+  // Add TeamMember tag - Circle workflow will assign WSG Teams access group automatically
   if (circleId) {
-    const tagSlug = accessType === 'subscription' ? 'team-member-subscription' : 'team-member-course';
     await fetch(
       `https://app.circle.so/api/admin/v2/community_members/${circleId}/member_tags`,
       {
@@ -103,7 +103,7 @@ async function addCircleMember(email, accessType) {
           Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ tag_slugs: [tagSlug] })
+        body: JSON.stringify({ tag_slugs: ['TeamMember'] })
       }
     );
   }
