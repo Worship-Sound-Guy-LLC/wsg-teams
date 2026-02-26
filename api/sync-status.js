@@ -5,7 +5,6 @@ const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
   const { teamId } = req.body;
   if (!teamId) return res.status(400).json({ error: 'Team ID required' });
 
@@ -27,20 +26,23 @@ export default async function handler(req, res) {
         { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
       );
       const circleData = await circleRes.json();
-      
-      // Log full response to help debug
-      console.log('Circle response for', member.member_email, JSON.stringify(circleData));
 
-      const circleMember = circleData?.community_members?.[0];
+      // Circle v2 API returns records[], not community_members[]
+      const circleMember = circleData?.records?.[0];
       if (!circleMember) continue;
 
-      const inviteStatus = circleMember.invitation_status || '';
-      const isFullMember = circleMember.role === 'member' && (inviteStatus === 'accepted' || inviteStatus === 'member' || !inviteStatus);
-      const hasAccount = inviteStatus === 'account_created' || inviteStatus === 'account created' || circleMember.confirmed_at;
-
+      // Circle v2 does NOT have invitation_status field.
+      // Use active + accepted_invitation + profile_confirmed_at instead.
       let newStatus = null;
-      if (isFullMember) newStatus = 'active';
-      else if (hasAccount) newStatus = 'viewed';
+
+      if (circleMember.active === true && circleMember.accepted_invitation) {
+        // Fully enrolled - accepted invite and is an active member
+        newStatus = 'active';
+      } else if (circleMember.profile_confirmed_at) {
+        // Created account and confirmed profile, but not fully active yet
+        newStatus = 'viewed';
+      }
+      // If neither, they haven't touched the invite yet — leave as 'invited'
 
       if (newStatus) {
         await supabase
