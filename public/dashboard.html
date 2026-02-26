@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WSG Team Dashboard</title>
+  <title>WSG Central Team Dashboard</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -110,30 +110,68 @@
     }
     .add-member-row input[type="email"]:focus { border-color: #4f46e5; }
     .copied { color: #16a34a; font-size: 0.8rem; margin-top: 4px; }
-    .no-team-card { text-align: center; padding: 40px 24px; }
-    .no-team-card h3 { margin-bottom: 8px; }
-    .no-team-card p { color: #666; font-size: 0.9rem; }
+    .member-info { display: flex; flex-direction: column; gap: 2px; }
+    .member-status {
+      font-size: 0.75rem;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 20px;
+      display: inline-block;
+      width: fit-content;
+    }
+    .invited { background: #fef9c3; color: #854d0e; }
+    .viewed  { background: #dbeafe; color: #1e40af; }
+    .active  { background: #dcfce7; color: #166534; }
 
-.member-info { display: flex; flex-direction: column; gap: 2px; }
-.member-status {
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 2px 8px;
-  border-radius: 20px;
-  display: inline-block;
-  width: fit-content;
-}
-.invited { background: #fef9c3; color: #854d0e; }
-.viewed  { background: #dbeafe; color: #1e40af; }
-.active  { background: #dcfce7; color: #166534; }
-    
+    /* No team state */
+    .no-team-card {
+      text-align: center;
+      padding: 48px 24px;
+    }
+    .no-team-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+    .no-team-card h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #1a1a2e;
+    }
+    .no-team-card p {
+      color: #666;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      max-width: 420px;
+      margin: 0 auto 24px;
+    }
+    .no-team-card .btn-upgrade {
+      background: #4f46e5;
+      color: white;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-block;
+      transition: opacity 0.2s;
+    }
+    .no-team-card .btn-upgrade:hover { opacity: 0.88; }
+    .no-team-card .support-link {
+      display: block;
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #999;
+    }
+    .no-team-card .support-link a { color: #4f46e5; text-decoration: none; }
+    .no-team-card .support-link a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
 <div class="header">
   <div>
-    <h1>WSG Team Dashboard</h1>
+    <h1>WSG Central Team Dashboard</h1>
     <p id="userEmailDisplay">Manage your team members</p>
   </div>
   <button class="signout-btn" id="signoutBtn">Sign Out</button>
@@ -148,17 +186,16 @@
   const SUPABASE_URL = 'https://ptofajaxaopzdwtfvfhq.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_pbucGPyxVzuK77Q3n62QNA_F8x0SzY_';
   const API_BASE = '/api';
+
   function getStatusLabel(status) {
-  if (status === 'active') return '✓ Active';
-  if (status === 'viewed') return '👀 Viewed invite';
-  return '📧 Invite sent';
-}
+    if (status === 'active') return '✓ Active';
+    if (status === 'viewed') return '👀 Viewed invite';
+    return '📧 Invite sent';
+  }
 
   let currentSession = null;
 
-  // On page load, check for auth
   window.addEventListener('load', async function() {
-    // Check for hash fragment from magic link
     const hash = window.location.hash;
     if (hash && hash.includes('access_token')) {
       await handleAuthCallback(hash);
@@ -171,11 +208,9 @@
     const params = new URLSearchParams(hash.substring(1));
     const accessToken = params.get('access_token');
     const refreshToken = params.get('refresh_token');
-
     if (accessToken) {
       sessionStorage.setItem('wsg_access_token', accessToken);
       sessionStorage.setItem('wsg_refresh_token', refreshToken);
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
       await loadDashboard(accessToken);
     } else {
@@ -194,7 +229,6 @@
 
   async function loadDashboard(accessToken) {
     try {
-      // Get user info from Supabase
       const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: {
           'apikey': SUPABASE_ANON_KEY,
@@ -210,10 +244,8 @@
       const user = await userRes.json();
       const email = user.email;
       currentSession = { accessToken, email };
-
       document.getElementById('userEmailDisplay').textContent = email;
 
-      // Load team data
       const res = await fetch(`${API_BASE}/dashboard?email=${encodeURIComponent(email)}`);
       const data = await res.json();
 
@@ -222,8 +254,11 @@
       if (!res.ok || !data.teams || data.teams.length === 0) {
         document.getElementById('teamsContainer').innerHTML = `
           <div class="card no-team-card">
-            <h3>No active team found</h3>
-            <p>We couldn't find an active team subscription for ${email}.<br><br>If you believe this is an error, please contact support.</p>
+            <div class="no-team-icon">👥</div>
+            <h3>Uh Oh! No active team subscription found</h3>
+            <p>We couldn't find an active WSG teams subscription for <strong>${email}</strong>. Get started by purchasing a team plan to manage your crew's access to WSG Central.</p>
+            <a href="https://worshipsoundguy.com/central/" class="btn-upgrade">View Team Plans →</a>
+            <span class="support-link">Already purchased? <a href="mailto:support@worshipsoundguy.com">Contact support</a></span>
           </div>`;
         return;
       }
@@ -233,6 +268,7 @@
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('teamsContainer').innerHTML = `
         <div class="card no-team-card">
+          <div class="no-team-icon">⚠️</div>
           <h3>Something went wrong</h3>
           <p>Please try refreshing the page or signing in again.</p>
         </div>`;
@@ -252,14 +288,14 @@
       const membersHTML = team.members.length === 0
         ? '<div class="empty-members">No members added yet. Share your invite link or add members below!</div>'
         : team.members.map(function(m) {
-    return '<div class="member-row">' +
-      '<div class="member-info">' +
-        '<div class="member-email">' + m.email + '</div>' +
-        '<div class="member-status ' + (m.invite_status || 'invited') + '">' + getStatusLabel(m.invite_status) + '</div>' +
-      '</div>' +
-      '<button class="btn btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
-    '</div>';
-  }).join('');
+            return '<div class="member-row">' +
+              '<div class="member-info">' +
+                '<div class="member-email">' + m.email + '</div>' +
+                '<div class="member-status ' + (m.invite_status || 'invited') + '">' + getStatusLabel(m.invite_status) + '</div>' +
+              '</div>' +
+              '<button class="btn btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
+            '</div>';
+          }).join('');
 
       const addMemberSection = !isFull
         ? '<div class="add-member-section">' +
@@ -298,7 +334,6 @@
       container.appendChild(card);
     });
 
-    // Attach event listeners
     container.querySelectorAll('[data-copy]').forEach(function(btn) {
       btn.addEventListener('click', function() { copyLink(btn.getAttribute('data-copy')); });
     });
@@ -321,9 +356,7 @@
     const errorEl = document.getElementById('addError-' + teamId);
     const email = emailInput.value.trim();
     errorEl.textContent = '';
-
     if (!email) { errorEl.textContent = 'Please enter an email.'; return; }
-
     try {
       const res = await fetch(API_BASE + '/invite', {
         method: 'POST',
