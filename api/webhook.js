@@ -9,6 +9,7 @@ const TEAMS_PRODUCT_ID = 'prod_U2vN9o0joPvgXD';
 
 const TEAMS_MEMBER_TAG_ID = 227713;
 const TEAMS_LEADER_TAG_ID = 227715;
+const FREE_ACCESS_TAG_ID = 228295;
 
 export const config = { api: { bodyParser: false } };
 
@@ -191,7 +192,7 @@ async function removeCircleTag(memberId, tagId) {
         Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ member_tag_ids: remainingTagIds })
+      body: JSON.stringify({ member_tag_ids: [...remainingTagIds, FREE_ACCESS_TAG_ID] })
     }
   );
   console.log(`Remove tag ${tagId} from member ${memberId} - PATCH status:`, patchRes.status);
