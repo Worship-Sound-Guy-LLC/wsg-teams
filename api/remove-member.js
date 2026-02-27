@@ -4,6 +4,7 @@ const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
 const TEAMS_MEMBER_TAG_ID = 227713;
+const FREE_ACCESS_TAG_ID = 228295;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -90,7 +91,7 @@ async function removeCircleTag(email, tagId) {
         Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ member_tag_ids: remainingTagIds })
+      body: JSON.stringify({ member_tag_ids: [...remainingTagIds, FREE_ACCESS_TAG_ID] })
     }
   );
   console.log(`Remove tag ${tagId} from member ${memberId} - PATCH status:`, patchRes.status);
