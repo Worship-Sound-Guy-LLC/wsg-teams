@@ -4,7 +4,6 @@ const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
 const TEAMS_MEMBER_TAG_ID = 227713;
-const TEAMS_LEADER_TAG_ID = 227715;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -58,7 +57,12 @@ export default async function handler(req, res) {
   }
 
   // Add member to Circle and get their Circle ID
-  const circleId = await addCircleMember(memberEmail);
+  // Returns { circleId, alreadyMember }
+  const { circleId, alreadyMember } = await addCircleMember(memberEmail);
+
+  // If already a full Circle member, set invite_status to active (enrolled)
+  // Otherwise use addedByLeader flag to set invited vs active
+  const inviteStatus = alreadyMember ? 'active' : (addedByLeader ? 'invited' : 'active');
 
   // Add member to Supabase
   await supabase.from('team_members').insert({
@@ -66,14 +70,14 @@ export default async function handler(req, res) {
     member_email: memberEmail.toLowerCase(),
     member_circle_id: circleId,
     status: 'active',
-    invite_status: addedByLeader ? 'invited' : 'active'
+    invite_status: inviteStatus
   });
 
   return res.status(200).json({ success: true, message: 'You have been added to the team!' });
 }
 
 async function addCircleMember(email) {
-  // Invite member to Circle community
+  // Try to invite member to Circle community
   const inviteRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members`,
     {
@@ -91,15 +95,15 @@ async function addCircleMember(email) {
   );
 
   const inviteData = await inviteRes.json();
-  console.log('Circle invite response:', JSON.stringify(inviteData));
+  console.log('Circle invite response message:', inviteData?.message);
 
-  const circleId = inviteData?.community_member?.id
-    || inviteData?.records?.[0]?.id
-    || inviteData?.id;
-  console.log('Circle member ID:', circleId);
+  // Circle returns community_member whether new or existing
+  const circleId = inviteData?.community_member?.id || null;
+  const alreadyMember = inviteData?.message?.includes('already a member');
 
-  // Add TeamsMember tag using tag ID
-  // Circle workflow will assign WSG Teams access group automatically
+  console.log('Circle member ID:', circleId, '| Already member:', alreadyMember);
+
+  // Add TeamsMember tag — works whether member is new or existing
   if (circleId) {
     const tagRes = await fetch(
       `https://app.circle.so/api/admin/v2/community_members/${circleId}/member_tags`,
@@ -112,15 +116,11 @@ async function addCircleMember(email) {
         body: JSON.stringify({ tag_ids: [TEAMS_MEMBER_TAG_ID] })
       }
     );
-    let tagData;
-    try {
-      tagData = await tagRes.json();
-    } catch (e) {
-      tagData = await tagRes.text();
-    }
+    // Read response body only once as text, then try to parse as JSON
+    const tagText = await tagRes.text();
     console.log('Tag response status:', tagRes.status);
-    console.log('Tag response:', JSON.stringify(tagData));
+    console.log('Tag response:', tagText);
   }
 
-  return circleId || null;
+  return { circleId, alreadyMember };
 }
