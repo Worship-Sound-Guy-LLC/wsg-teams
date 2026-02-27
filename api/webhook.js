@@ -165,21 +165,20 @@ async function addCircleTag(memberId, tagId) {
 }
 
 // Safely remove a tag by fetching existing tags first and patching without target tag
-async function removeCircleTag(memberId, tagId) {
-  // Fetch current member to get existing tags
-  const getRes = await fetch(
+async function removeCircleTag(memberId) {
+  const res = await fetch(
     `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
-    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${process.env.CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ member_tag_ids: [FREE_ACCESS_TAG_ID] })
+    }
   );
-  const member = await getRes.json();
-  const existingTagIds = (member.member_tags || []).map(t => t.id);
-
-  console.log('Existing Circle tags before removal:', existingTagIds);
-
-  if (!existingTagIds.includes(tagId)) {
-    console.log(`Tag ${tagId} not present on member ${memberId}, skipping`);
-    return;
-  }
+  console.log(`Add FreeAccess tag to member ${memberId} - PATCH status: ${res.status}`);
+}
 
   // PATCH with tag filtered out - preserves all other existing tags
   const remainingTagIds = existingTagIds.filter(id => id !== tagId);
