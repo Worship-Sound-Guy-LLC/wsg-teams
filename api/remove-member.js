@@ -3,6 +3,8 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
+const TEAMS_MEMBER_TAG_ID = 227713;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -26,10 +28,10 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Member not found' });
   }
 
-  // Remove TeamMember tag from Circle
+  // Remove TeamsMember tag from Circle using tag ID
   // Circle workflow will automatically remove WSG Teams access group
   // and add Free Access access group
-  await removeCircleTag(memberEmail, 'TeamMember');
+  await removeCircleTag(memberEmail, TEAMS_MEMBER_TAG_ID);
 
   // Update status in Supabase
   const { error: updateError } = await supabase
@@ -50,19 +52,18 @@ async function getCircleMemberId(email) {
     { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
   );
   const data = await res.json();
-  // Circle v2 returns records[], not community_members[]
   return data?.records?.[0]?.id || null;
 }
 
-async function removeCircleTag(email, tagSlug) {
+async function removeCircleTag(email, tagId) {
   const memberId = await getCircleMemberId(email);
   if (!memberId) {
     console.log(`Circle member not found for email: ${email}`);
     return;
   }
 
-  await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags/${tagSlug}`,
+  const res = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags/${tagId}`,
     {
       method: 'DELETE',
       headers: {
@@ -71,6 +72,5 @@ async function removeCircleTag(email, tagSlug) {
       }
     }
   );
-
-  console.log(`Tag "${tagSlug}" removed from ${email}`);
+  console.log(`Tag ${tagId} removal status for ${email}:`, res.status);
 }
