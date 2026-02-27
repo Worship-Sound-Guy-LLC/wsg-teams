@@ -58,12 +58,20 @@ async function getCircleMemberId(email) {
 }
 
 // Safely remove a tag by fetching existing tags first and patching without target tag
-async function removeCircleTag(email, tagId) {
-  const memberId = await getCircleMemberId(email);
-  if (!memberId) {
-    console.log(`Circle member not found for email: ${email}`);
-    return;
-  }
+async function removeCircleTag(memberId) {
+  const res = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${process.env.CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ member_tag_ids: [FREE_ACCESS_TAG_ID] })
+    }
+  );
+  console.log(`Add FreeAccess tag to member ${memberId} - PATCH status: ${res.status}`);
+}
 
   // Fetch current member to get existing tags
   const getRes = await fetch(
