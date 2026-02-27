@@ -75,8 +75,8 @@ async function handleSubscriptionCreated(subscription) {
 
   console.log(`Team created for ${leaderEmail}, token: ${token}`);
 
-  // Add TeamsLeader tag to leader in Circle
-  await addCircleTag(leaderEmail, TEAMS_LEADER_TAG_ID);
+  // Add TeamsLeader tag to leader in Circle (safely, preserving existing tags)
+  await addCircleTagByEmail(leaderEmail, TEAMS_LEADER_TAG_ID);
 }
 
 async function handleSubscriptionDeleted(subscription) {
@@ -99,11 +99,11 @@ async function handleSubscriptionDeleted(subscription) {
     .eq('team_id', team.id)
     .eq('status', 'active');
 
-  // Remove TeamsMember tag from all members
+  // Remove TeamsMember tag from all members safely (preserving other tags)
   // Circle workflow will automatically downgrade each to Free Access
   if (members?.length) {
     for (const member of members) {
-      await removeCircleTag(member.member_email, TEAMS_MEMBER_TAG_ID);
+      await removeCircleTagByEmail(member.member_email, TEAMS_MEMBER_TAG_ID);
     }
   }
 
@@ -119,54 +119,101 @@ async function handleSubscriptionDeleted(subscription) {
   console.log(`Team ${team.id} revoked, ${members?.length || 0} members downgraded`);
 }
 
+// ---- Circle API Helpers ----
+
 async function getCircleMemberId(email) {
   const res = await fetch(
     `https://app.circle.so/api/admin/v2/community_members?email=${encodeURIComponent(email)}&community_id=${CIRCLE_COMMUNITY_ID}`,
     { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
   );
   const data = await res.json();
+  // Circle v2 returns records[], not community_members[]
   return data?.records?.[0]?.id || null;
 }
 
-async function addCircleTag(email, tagId) {
-  const memberId = await getCircleMemberId(email);
-  if (!memberId) {
-    console.log(`Circle member not found for email: ${email}`);
+// Safely add a tag by fetching existing tags first and merging
+async function addCircleTag(memberId, tagId) {
+  // Fetch current member to get existing tags
+  const getRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+  );
+  const member = await getRes.json();
+  const existingTagIds = (member.member_tags || []).map(t => t.id);
+
+  console.log('Existing Circle tags:', existingTagIds);
+
+  if (existingTagIds.includes(tagId)) {
+    console.log(`Tag ${tagId} already present on member ${memberId}, skipping`);
     return;
   }
 
-  const res = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags`,
+  // PATCH with merged tag list - preserves all existing tags
+  const patchRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
     {
-      method: 'PUT',
+      method: 'PATCH',
       headers: {
         Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ tag_ids: [tagId] })
+      body: JSON.stringify({ member_tag_ids: [...existingTagIds, tagId] })
     }
   );
-  console.log(`Tag ${tagId} added to ${email}, status:`, res.status);
+  console.log(`Add tag ${tagId} to member ${memberId} - PATCH status:`, patchRes.status);
 }
 
-async function removeCircleTag(email, tagId) {
+// Safely remove a tag by fetching existing tags first and patching without target tag
+async function removeCircleTag(memberId, tagId) {
+  // Fetch current member to get existing tags
+  const getRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+  );
+  const member = await getRes.json();
+  const existingTagIds = (member.member_tags || []).map(t => t.id);
+
+  console.log('Existing Circle tags before removal:', existingTagIds);
+
+  if (!existingTagIds.includes(tagId)) {
+    console.log(`Tag ${tagId} not present on member ${memberId}, skipping`);
+    return;
+  }
+
+  // PATCH with tag filtered out - preserves all other existing tags
+  const remainingTagIds = existingTagIds.filter(id => id !== tagId);
+
+  const patchRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ member_tag_ids: remainingTagIds })
+    }
+  );
+  console.log(`Remove tag ${tagId} from member ${memberId} - PATCH status:`, patchRes.status);
+}
+
+// Convenience wrappers that look up Circle ID by email first
+async function addCircleTagByEmail(email, tagId) {
   const memberId = await getCircleMemberId(email);
   if (!memberId) {
     console.log(`Circle member not found for email: ${email}`);
     return;
   }
+  await addCircleTag(memberId, tagId);
+}
 
-  const res = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags/${tagId}`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    }
-  );
-  console.log(`Tag ${tagId} removed from ${email}, status:`, res.status);
+async function removeCircleTagByEmail(email, tagId) {
+  const memberId = await getCircleMemberId(email);
+  if (!memberId) {
+    console.log(`Circle member not found for email: ${email}`);
+    return;
+  }
+  await removeCircleTag(memberId, tagId);
 }
 
 function generateToken() {
