@@ -3,8 +3,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
-const TEAMS_MEMBER_TAG_ID = 227713;
-const FREE_ACCESS_TAG_ID = 228295;
+const FREE_ACCESS_TAG_ID = 228295; // Triggers Circle automation to downgrade member
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -29,10 +28,11 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Member not found' });
   }
 
-  // Remove TeamsMember tag from Circle safely (preserving all other tags)
-  // Circle workflow will automatically remove WSG Teams access group
-  // and add Free Access access group
-  await removeCircleTag(memberEmail, TEAMS_MEMBER_TAG_ID);
+  // Apply FreeAccess tag to trigger Circle automation.
+  // Circle workflow detects this tag, removes Teams access group,
+  // adds Free tier access group, then removes TeamsMember tag after 1hr.
+  // We do NOT attempt to remove TeamsMember directly — Circle automation handles it.
+  await applyFreeAccessTag(memberEmail, member.member_circle_id);
 
   // Update status in Supabase
   const { error: updateError } = await supabase
@@ -57,39 +57,15 @@ async function getCircleMemberId(email) {
   return data?.records?.[0]?.id || null;
 }
 
-// Safely remove a tag by fetching existing tags first and patching without target tag
-async function removeCircleTag(memberId) {
-  const res = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
-    {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${process.env.CIRCLE_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ member_tag_ids: [FREE_ACCESS_TAG_ID] })
-    }
-  );
-  console.log(`Add FreeAccess tag to member ${memberId} - PATCH status: ${res.status}`);
-}
-
-  // Fetch current member to get existing tags
-  const getRes = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
-    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
-  );
-  const member = await getRes.json();
-  const existingTagIds = (member.member_tags || []).map(t => t.id);
-
-  console.log('Existing Circle tags before removal:', existingTagIds);
-
-  if (!existingTagIds.includes(tagId)) {
-    console.log(`Tag ${tagId} not present on member ${memberId}, skipping`);
+// Apply FreeAccess tag — overwrites all tags with just FreeAccess.
+// Circle automation "Team Member Removed" handles the rest.
+async function applyFreeAccessTag(email, circleIdFromDb) {
+  // Prefer the stored Circle ID, fall back to lookup by email
+  const memberId = circleIdFromDb || await getCircleMemberId(email);
+  if (!memberId) {
+    console.log(`Circle member not found for email: ${email}`);
     return;
   }
-
-  // PATCH with tag filtered out - preserves all other existing tags
-  const remainingTagIds = existingTagIds.filter(id => id !== tagId);
 
   const patchRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
@@ -99,8 +75,8 @@ async function removeCircleTag(memberId) {
         Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ member_tag_ids: [...remainingTagIds, FREE_ACCESS_TAG_ID] })
+      body: JSON.stringify({ member_tag_ids: [FREE_ACCESS_TAG_ID] })
     }
   );
-  console.log(`Remove tag ${tagId} from member ${memberId} - PATCH status:`, patchRes.status);
+  console.log(`Applied FreeAccess tag to member ${memberId} (${email}) - PATCH status:`, patchRes.status);
 }
