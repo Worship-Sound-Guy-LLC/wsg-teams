@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Member not found' });
   }
 
-  // Remove TeamsMember tag from Circle using tag ID
+  // Remove TeamsMember tag from Circle safely (preserving all other tags)
   // Circle workflow will automatically remove WSG Teams access group
   // and add Free Access access group
   await removeCircleTag(memberEmail, TEAMS_MEMBER_TAG_ID);
@@ -52,9 +52,11 @@ async function getCircleMemberId(email) {
     { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
   );
   const data = await res.json();
+  // Circle v2 returns records[], not community_members[]
   return data?.records?.[0]?.id || null;
 }
 
+// Safely remove a tag by fetching existing tags first and patching without target tag
 async function removeCircleTag(email, tagId) {
   const memberId = await getCircleMemberId(email);
   if (!memberId) {
@@ -62,15 +64,34 @@ async function removeCircleTag(email, tagId) {
     return;
   }
 
-  const res = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}/member_tags/${tagId}`,
+  // Fetch current member to get existing tags
+  const getRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+  );
+  const member = await getRes.json();
+  const existingTagIds = (member.member_tags || []).map(t => t.id);
+
+  console.log('Existing Circle tags before removal:', existingTagIds);
+
+  if (!existingTagIds.includes(tagId)) {
+    console.log(`Tag ${tagId} not present on member ${memberId}, skipping`);
+    return;
+  }
+
+  // PATCH with tag filtered out - preserves all other existing tags
+  const remainingTagIds = existingTagIds.filter(id => id !== tagId);
+
+  const patchRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
     {
-      method: 'DELETE',
+      method: 'PATCH',
       headers: {
         Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ member_tag_ids: remainingTagIds })
     }
   );
-  console.log(`Tag ${tagId} removal status for ${email}:`, res.status);
+  console.log(`Remove tag ${tagId} from member ${memberId} - PATCH status:`, patchRes.status);
 }
