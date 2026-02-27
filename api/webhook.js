@@ -7,9 +7,8 @@ const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 const TEAMS_PRODUCT_ID = 'prod_U2vN9o0joPvgXD';
 
-const TEAMS_MEMBER_TAG_ID = 227713;
 const TEAMS_LEADER_TAG_ID = 227715;
-const FREE_ACCESS_TAG_ID = 228295;
+const FREE_ACCESS_TAG_ID = 228295; // Triggers Circle automation to downgrade member
 
 export const config = { api: { bodyParser: false } };
 
@@ -96,15 +95,16 @@ async function handleSubscriptionDeleted(subscription) {
   // Get all active members
   const { data: members } = await supabase
     .from('team_members')
-    .select('member_email')
+    .select('member_email, member_circle_id')
     .eq('team_id', team.id)
     .eq('status', 'active');
 
-  // Remove TeamsMember tag from all members safely (preserving other tags)
-  // Circle workflow will automatically downgrade each to Free Access
+  // Apply FreeAccess tag to each member to trigger Circle automation.
+  // Circle workflow "Team Member Removed" handles access group downgrade
+  // and TeamsMember tag removal automatically.
   if (members?.length) {
     for (const member of members) {
-      await removeCircleTagByEmail(member.member_email, TEAMS_MEMBER_TAG_ID);
+      await applyFreeAccessTag(member.member_email, member.member_circle_id);
     }
   }
 
@@ -132,9 +132,9 @@ async function getCircleMemberId(email) {
   return data?.records?.[0]?.id || null;
 }
 
-// Safely add a tag by fetching existing tags first and merging
+// Safely add a tag by fetching existing tags first and merging.
+// Required because PATCH member_tag_ids REPLACES all tags.
 async function addCircleTag(memberId, tagId) {
-  // Fetch current member to get existing tags
   const getRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
     { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
@@ -149,7 +149,6 @@ async function addCircleTag(memberId, tagId) {
     return;
   }
 
-  // PATCH with merged tag list - preserves all existing tags
   const patchRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
     {
@@ -164,24 +163,16 @@ async function addCircleTag(memberId, tagId) {
   console.log(`Add tag ${tagId} to member ${memberId} - PATCH status:`, patchRes.status);
 }
 
-// Safely remove a tag by fetching existing tags first and patching without target tag
-async function removeCircleTag(memberId) {
-  const res = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
-    {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${process.env.CIRCLE_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ member_tag_ids: [FREE_ACCESS_TAG_ID] })
-    }
-  );
-  console.log(`Add FreeAccess tag to member ${memberId} - PATCH status: ${res.status}`);
-}
-
-  // PATCH with tag filtered out - preserves all other existing tags
-  const remainingTagIds = existingTagIds.filter(id => id !== tagId);
+// Apply FreeAccess tag — overwrites all tags with just FreeAccess.
+// Circle automation "Team Member Removed" handles the rest:
+// removes Teams access group, adds Free tier, removes TeamsMember tag after 1hr.
+async function applyFreeAccessTag(email, circleIdFromDb) {
+  // Prefer the stored Circle ID, fall back to lookup by email
+  const memberId = circleIdFromDb || await getCircleMemberId(email);
+  if (!memberId) {
+    console.log(`Circle member not found for email: ${email}`);
+    return;
+  }
 
   const patchRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
@@ -191,13 +182,13 @@ async function removeCircleTag(memberId) {
         Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ member_tag_ids: [...remainingTagIds, FREE_ACCESS_TAG_ID] })
+      body: JSON.stringify({ member_tag_ids: [FREE_ACCESS_TAG_ID] })
     }
   );
-  console.log(`Remove tag ${tagId} from member ${memberId} - PATCH status:`, patchRes.status);
+  console.log(`Applied FreeAccess tag to member ${memberId} (${email}) - PATCH status:`, patchRes.status);
 }
 
-// Convenience wrappers that look up Circle ID by email first
+// Convenience wrapper for adding tags by email
 async function addCircleTagByEmail(email, tagId) {
   const memberId = await getCircleMemberId(email);
   if (!memberId) {
@@ -205,15 +196,6 @@ async function addCircleTagByEmail(email, tagId) {
     return;
   }
   await addCircleTag(memberId, tagId);
-}
-
-async function removeCircleTagByEmail(email, tagId) {
-  const memberId = await getCircleMemberId(email);
-  if (!memberId) {
-    console.log(`Circle member not found for email: ${email}`);
-    return;
-  }
-  await removeCircleTag(memberId, tagId);
 }
 
 function generateToken() {
