@@ -3,6 +3,9 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
+const TEAMS_MEMBER_TAG_ID = 227713;
+const TEAMS_LEADER_TAG_ID = 227715;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -66,9 +69,6 @@ export default async function handler(req, res) {
     invite_status: addedByLeader ? 'invited' : 'active'
   });
 
-  // Mark token as used (single-use tokens only — for shareable links we skip this)
-  // await supabase.from('invite_tokens').update({ used: true, used_at: new Date().toISOString() }).eq('id', invite.id);
-
   return res.status(200).json({ success: true, message: 'You have been added to the team!' });
 }
 
@@ -98,7 +98,8 @@ async function addCircleMember(email) {
     || inviteData?.id;
   console.log('Circle member ID:', circleId);
 
-  // Add TeamMember tag - Circle workflow will assign WSG Teams access group automatically
+  // Add TeamsMember tag using tag ID
+  // Circle workflow will assign WSG Teams access group automatically
   if (circleId) {
     const tagRes = await fetch(
       `https://app.circle.so/api/admin/v2/community_members/${circleId}/member_tags`,
@@ -108,10 +109,15 @@ async function addCircleMember(email) {
           Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ tag_slugs: ['TeamMember'] })
+        body: JSON.stringify({ tag_ids: [TEAMS_MEMBER_TAG_ID] })
       }
     );
-    const tagData = await tagRes.json();
+    let tagData;
+    try {
+      tagData = await tagRes.json();
+    } catch (e) {
+      tagData = await tagRes.text();
+    }
     console.log('Tag response status:', tagRes.status);
     console.log('Tag response:', JSON.stringify(tagData));
   }
