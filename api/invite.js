@@ -91,15 +91,16 @@ async function addCircleMember(email) {
   );
 
   const inviteData = await inviteRes.json();
-    console.log('Circle invite response:', JSON.stringify(inviteData));
-  const circleId = inviteData?.community_member?.id 
-      || inviteData?.records?.[0]?.id 
-      || inviteData?.id;
-    console.log('Circle member ID:', circleId);
+  console.log('Circle invite response:', JSON.stringify(inviteData));
+
+  const circleId = inviteData?.community_member?.id
+    || inviteData?.records?.[0]?.id
+    || inviteData?.id;
+  console.log('Circle member ID:', circleId);
 
   // Add TeamMember tag - Circle workflow will assign WSG Teams access group automatically
   if (circleId) {
-    await fetch(
+    const tagRes = await fetch(
       `https://app.circle.so/api/admin/v2/community_members/${circleId}/member_tags`,
       {
         method: 'PUT',
@@ -110,6 +111,9 @@ async function addCircleMember(email) {
         body: JSON.stringify({ tag_slugs: ['TeamMember'] })
       }
     );
+    const tagData = await tagRes.json();
+    console.log('Tag response status:', tagRes.status);
+    console.log('Tag response:', JSON.stringify(tagData));
   }
 
   return circleId || null;
