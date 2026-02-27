@@ -103,24 +103,42 @@ async function addCircleMember(email) {
 
   console.log('Circle member ID:', circleId, '| Already member:', alreadyMember);
 
-  // Add TeamsMember tag — works whether member is new or existing
+  // Add TeamsMember tag safely (preserving all existing tags)
   if (circleId) {
-    const tagRes = await fetch(
-      `https://app.circle.so/api/admin/v2/community_members/${circleId}/member_tags`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ tag_ids: [TEAMS_MEMBER_TAG_ID] })
-      }
-    );
-    // Read response body only once as text, then try to parse as JSON
-    const tagText = await tagRes.text();
-    console.log('Tag response status:', tagRes.status);
-    console.log('Tag response:', tagText);
+    await addCircleTag(circleId, TEAMS_MEMBER_TAG_ID);
   }
 
   return { circleId, alreadyMember };
+}
+
+// Safely add a tag by fetching existing tags first and merging
+async function addCircleTag(memberId, tagId) {
+  // Fetch current member to get existing tags
+  const getRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+  );
+  const member = await getRes.json();
+  const existingTagIds = (member.member_tags || []).map(t => t.id);
+
+  console.log('Existing Circle tags:', existingTagIds);
+
+  if (existingTagIds.includes(tagId)) {
+    console.log(`Tag ${tagId} already present on member ${memberId}, skipping`);
+    return;
+  }
+
+  // PATCH with merged tag list - preserves all existing tags
+  const patchRes = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ member_tag_ids: [...existingTagIds, tagId] })
+    }
+  );
+  console.log(`Add tag ${tagId} to member ${memberId} - PATCH status:`, patchRes.status);
 }
