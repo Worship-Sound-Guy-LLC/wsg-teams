@@ -41,10 +41,10 @@ export default async function handler(req, res) {
   // We do NOT attempt to remove TeamsMember directly — Circle automation handles it.
   await applyFreeAccessTag(memberEmail, member.member_circle_id);
 
-  // Update status in Supabase
+  // Update status in Supabase, storing revoked_at for the 2hr re-add cooldown
   const { error: updateError } = await supabase
     .from('team_members')
-    .update({ status: 'revoked' })
+    .update({ status: 'revoked', revoked_at: new Date().toISOString() })
     .eq('id', member.id);
 
   if (updateError) {
