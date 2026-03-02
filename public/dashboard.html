@@ -113,6 +113,10 @@
     .opened  { background: #0d2040; color: #60a5fa; }
     .active  { background: #0d2a18; color: #22c55e; }
     .empty-members { color: #888; font-size: 0.9rem; text-align: center; padding: 20px 0; }
+    .member-row.revoked { opacity: 0.45; }
+    .revoked-badge { background: #2a1a1a; color: #ff4444; }
+    .toggle-removed-btn { background: transparent; color: #555; border: none; font-size: 0.8rem; cursor: pointer; padding: 10px 0 2px; display: block; width: 100%; text-align: center; transition: color 0.2s; }
+    .toggle-removed-btn:hover { color: #888; }
     .error-msg { color: #ff4444; font-size: 0.85rem; margin-top: 8px; }
     .loading { text-align: center; color: #555; padding: 60px; }
     .add-member-section { margin-top: 20px; padding-top: 20px; border-top: 1px solid #222; }
@@ -264,9 +268,12 @@
       const badgeClass = team.accessType === 'subscription' ? 'badge-subscription' : 'badge-course';
       const badgeLabel = team.accessType === 'subscription' ? 'Subscription Team' : 'Course Team';
 
-      const membersHTML = team.members.length === 0
+      const activeMembers = team.members.filter(function(m) { return m.status !== 'revoked'; });
+      const revokedMembers = team.members.filter(function(m) { return m.status === 'revoked'; });
+
+      const activeMembersHTML = activeMembers.length === 0
         ? '<div class="empty-members">No members added yet. Share your invite link or add members below!</div>'
-        : team.members.map(function(m) {
+        : activeMembers.map(function(m) {
             return '<div class="member-row">' +
               '<div class="member-info">' +
                 '<div class="member-email">' + m.email + '</div>' +
@@ -275,6 +282,22 @@
               '<button class="btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
             '</div>';
           }).join('');
+
+      const revokedMembersHTML = revokedMembers.map(function(m) {
+        return '<div class="member-row revoked">' +
+          '<div class="member-info">' +
+            '<div class="member-email">' + m.email + '</div>' +
+            '<div class="member-status revoked-badge">Removed</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      const toggleHTML = revokedMembers.length > 0
+        ? '<button class="toggle-removed-btn" data-toggle-team="' + team.id + '">+ Show ' + revokedMembers.length + ' removed member' + (revokedMembers.length !== 1 ? 's' : '') + '</button>' +
+          '<div id="revoked-' + team.id + '" style="display:none;">' + revokedMembersHTML + '</div>'
+        : '';
+
+      const membersHTML = activeMembersHTML + toggleHTML;
 
       const syncButton = '<button class="btn btn-sync" data-sync-team="' + team.id + '">↻ Sync Status</button>';
       const addMemberSection = !isFull
@@ -317,6 +340,18 @@
       container.appendChild(card);
     });
 
+    container.querySelectorAll('[data-toggle-team]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const teamId = btn.getAttribute('data-toggle-team');
+        const revokedEl = document.getElementById('revoked-' + teamId);
+        const count = btn.getAttribute('data-toggle-team') && revokedEl.querySelectorAll('.member-row').length;
+        const isHidden = revokedEl.style.display === 'none';
+        revokedEl.style.display = isHidden ? 'block' : 'none';
+        btn.textContent = isHidden
+          ? '− Hide removed members'
+          : '+ Show ' + revokedEl.querySelectorAll('.member-row').length + ' removed member' + (revokedEl.querySelectorAll('.member-row').length !== 1 ? 's' : '');
+      });
+    });
     container.querySelectorAll('[data-sync-team]').forEach(function(btn) {
     btn.addEventListener('click', function() { syncStatus(btn.getAttribute('data-sync-team'), btn); });
     });
