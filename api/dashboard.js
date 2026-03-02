@@ -53,19 +53,21 @@ export default async function handler(req, res) {
 
   const formattedTeams = teams.map(team => {
     const activeMembers = team.team_members.filter(m => m.status === 'active');
+    const allMembers = team.team_members; // includes revoked, for display purposes
     const inviteToken = team.invite_tokens?.[0]?.token;
 
     return {
       id: team.id,
       accessType: team.access_type,
       seatLimit: team.seat_limit,
-      seatsUsed: activeMembers.length,
+      seatsUsed: activeMembers.length,       // seat count = active only
       seatsRemaining: team.seat_limit - activeMembers.length,
       status: team.status,
       courseSpaceId: team.course_space_id,
       inviteLink: inviteToken ? `${process.env.SITE_URL}/join?token=${inviteToken}` : null,
-      members: activeMembers.map(m => ({
+      members: allMembers.map(m => ({
         email: m.member_email,
+        status: m.status,                    // 'active' or 'revoked' — used by dashboard to filter/display
         joinedAt: m.joined_at,
         invite_status: m.invite_status
       }))
