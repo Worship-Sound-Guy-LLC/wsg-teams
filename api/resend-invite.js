@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { verifySession } from './auth-helper.js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
@@ -11,6 +12,13 @@ export default async function handler(req, res) {
   const { memberEmail } = req.body;
   if (!memberEmail) {
     return res.status(400).json({ error: 'Member email is required' });
+  }
+
+  // Verify the session — no teamId check here since resend only needs
+  // the caller to be a valid authenticated leader
+  const auth = await verifySession(req, null);
+  if (auth.error) {
+    return res.status(auth.status).json({ error: auth.error });
   }
 
   // Verify this member exists and is active in Supabase
