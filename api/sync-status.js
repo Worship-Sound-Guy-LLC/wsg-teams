@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { verifySession } from './auth-helper.js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
@@ -8,6 +9,12 @@ export default async function handler(req, res) {
 
   const { teamId } = req.body;
   if (!teamId) return res.status(400).json({ error: 'Team ID required' });
+
+  // Verify the session and confirm the caller owns this team
+  const auth = await verifySession(req, teamId);
+  if (auth.error) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
 
   // Only sync members who are active (not revoked) and not yet enrolled
   const { data: members, error } = await supabase
@@ -60,4 +67,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(200).json({ updated });
-}
+}  
