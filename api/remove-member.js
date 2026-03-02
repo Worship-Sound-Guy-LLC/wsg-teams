@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import { verifySession } from './auth-helper.js';
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
-const FREE_ACCESS_TAG_ID = 228295; // Triggers Circle automation to downgrade member
+const FREE_ACCESS_TAG_ID = 228295;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,6 +14,12 @@ export default async function handler(req, res) {
   const { teamId, memberEmail } = req.body;
   if (!teamId || !memberEmail) {
     return res.status(400).json({ error: 'Team ID and member email are required' });
+  }
+
+  // Verify the session and confirm the caller owns this team
+  const auth = await verifySession(req, teamId);
+  if (auth.error) {
+    return res.status(auth.status).json({ error: auth.error });
   }
 
   // Get the member record - only non-revoked members
