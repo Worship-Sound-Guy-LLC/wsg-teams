@@ -115,6 +115,8 @@
     .empty-members { color: #888; font-size: 0.9rem; text-align: center; padding: 20px 0; }
     .member-row.revoked { opacity: 0.45; }
     .revoked-badge { background: #2a1a1a; color: #ff4444; }
+    .btn-readd { background: transparent; color: #1a8cff; border: 1px solid #0d2a4a; font-size: 0.8rem; padding: 5px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+    .btn-readd:hover { background: #0d2a4a; }
     .toggle-removed-btn { background: transparent; color: #555; border: none; font-size: 0.8rem; cursor: pointer; padding: 10px 0 2px; display: block; width: 100%; text-align: center; transition: color 0.2s; }
     .toggle-removed-btn:hover { color: #888; }
     .error-msg { color: #ff4444; font-size: 0.85rem; margin-top: 8px; }
@@ -289,6 +291,7 @@
             '<div class="member-email">' + m.email + '</div>' +
             '<div class="member-status revoked-badge">Removed</div>' +
           '</div>' +
+          '<button class="btn-readd" data-readd-team="' + team.id + '" data-readd-email="' + m.email + '">Re-add</button>' +
         '</div>';
       }).join('');
 
@@ -340,6 +343,20 @@
       container.appendChild(card);
     });
 
+    container.querySelectorAll('[data-readd-team]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const teamId = btn.getAttribute('data-readd-team');
+        const email = btn.getAttribute('data-readd-email');
+        const input = document.getElementById('addEmail-' + teamId);
+        if (input) {
+          input.value = email;
+          input.focus();
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          input.style.borderColor = '#1a8cff';
+          setTimeout(function() { input.style.borderColor = '#333'; }, 2000);
+        }
+      });
+    });
     container.querySelectorAll('[data-toggle-team]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         const teamId = btn.getAttribute('data-toggle-team');
