@@ -75,9 +75,9 @@
     .seats-label { font-size: 0.85rem; color: #cccccc; margin-bottom: 10px; font-weight: 500; }
     .seats-avatars { display: flex; gap: 8px; flex-wrap: wrap; }
     .seat-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-    .seat-avatar.filled { background: #1a8cff; }
-    .seat-avatar.filled.full { background: #ff4444; }
-    .seat-avatar.empty { background: #1e1e1e; border: 1.5px solid #2e2e2e; }
+    .seat-avatar.filled { background: #1e1e1e; border: 1.5px solid #2e2e2e; }
+    .seat-avatar.filled.full { background: #2a1010; border: 1.5px solid #3a1a1a; }
+    .seat-avatar.empty { background: #1a8cff; }
     .seat-avatar svg { width: 18px; height: 18px; }
     .btn-resend { background: transparent; color: #888; border: 1px solid #2a2a2a; font-size: 0.75rem; padding: 3px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-left: 8px; }
     .btn-resend:hover { border-color: #1a8cff; color: #1a8cff; }
@@ -336,7 +336,7 @@
               var filled = i < team.seatsUsed;
               var fullClass = filled && isFull ? ' full' : '';
               var avatarClass = filled ? 'filled' + fullClass : 'empty';
-              var iconColor = filled ? '#ffffff' : '#3a3a3a';
+              var iconColor = filled ? '#2e2e2e' : '#ffffff';
               return '<div class="seat-avatar ' + avatarClass + '" title="' + (filled ? 'Seat in use' : 'Empty seat') + '">' +
                 '<svg viewBox="0 0 24 24" fill="' + iconColor + '" xmlns="http://www.w3.org/2000/svg">' +
                   '<circle cx="12" cy="8" r="4"/>' +
