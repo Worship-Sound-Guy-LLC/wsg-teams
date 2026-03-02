@@ -4,6 +4,7 @@ const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
 const TEAMS_MEMBER_TAG_ID = 227713;
+const READD_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,6 +16,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Token and email are required' });
   }
 
+  // Look up the invite token
   const { data: invite, error: inviteError } = await supabase
     .from('invite_tokens')
     .select('*, teams(*)')
@@ -55,27 +57,45 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'This email is already a member of this team' });
   }
 
-  // Add to Circle and apply TeamsMember tag
-  const { circleId, alreadyMember } = await addCircleMember(memberEmail);
-
-  const inviteStatus = alreadyMember ? 'active' : (addedByLeader ? 'invited' : 'active');
-
-  // Check for a revoked record — reactivate instead of inserting a duplicate
+  // Check for a revoked record — enforce 2hr cooldown before re-adding
   const { data: revokedMember } = await supabase
     .from('team_members')
-    .select('id')
+    .select('id, revoked_at')
     .eq('team_id', team.id)
     .eq('member_email', memberEmail.toLowerCase())
     .eq('status', 'revoked')
     .single();
 
+  if (revokedMember?.revoked_at) {
+    const revokedAt = new Date(revokedMember.revoked_at).getTime();
+    const elapsed = Date.now() - revokedAt;
+    if (elapsed < READD_COOLDOWN_MS) {
+      const minutesRemaining = Math.ceil((READD_COOLDOWN_MS - elapsed) / 60000);
+      const hoursRemaining = Math.floor(minutesRemaining / 60);
+      const minsLeft = minutesRemaining % 60;
+      const timeLeft = hoursRemaining > 0
+        ? `${hoursRemaining}h ${minsLeft}m`
+        : `${minsLeft}m`;
+      return res.status(400).json({
+        error: `This member was recently removed. Re-adds are unavailable for 2 hours after removal. Please try again in ${timeLeft}.`
+      });
+    }
+  }
+
+  // Add to Circle and apply TeamsMember tag
+  const { circleId, alreadyMember } = await addCircleMember(memberEmail);
+
+  const inviteStatus = alreadyMember ? 'active' : (addedByLeader ? 'invited' : 'active');
+
   if (revokedMember) {
+    // Re-activate the existing record, clear revoked_at
     const { error: updateError } = await supabase
       .from('team_members')
       .update({
         status: 'active',
         invite_status: inviteStatus,
-        member_circle_id: circleId
+        member_circle_id: circleId,
+        revoked_at: null
       })
       .eq('id', revokedMember.id);
 
@@ -83,6 +103,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to re-add member' });
     }
   } else {
+    // Fresh insert for brand new members
     const { error: insertError } = await supabase
       .from('team_members')
       .insert({
