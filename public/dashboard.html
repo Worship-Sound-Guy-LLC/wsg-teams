@@ -71,11 +71,16 @@
     }
     .badge-subscription { background: #0d2a4a; color: #1a8cff; }
     .badge-course { background: #0d3320; color: #22c55e; }
-    .seats-bar-wrap { margin-bottom: 20px; }
-    .seats-label { font-size: 0.85rem; color: #cccccc; margin-bottom: 8px; font-weight: 500; }
-    .seats-bar { background: #2a2a2a; border-radius: 99px; height: 6px; overflow: hidden; }
-    .seats-fill { background: #1a8cff; height: 100%; border-radius: 99px; transition: width 0.4s; }
-    .seats-fill.full { background: #ff4444; }
+    .seats-wrap { margin-bottom: 20px; }
+    .seats-label { font-size: 0.85rem; color: #cccccc; margin-bottom: 10px; font-weight: 500; }
+    .seats-avatars { display: flex; gap: 8px; flex-wrap: wrap; }
+    .seat-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .seat-avatar.filled { background: #1a8cff; }
+    .seat-avatar.filled.full { background: #ff4444; }
+    .seat-avatar.empty { background: #1e1e1e; border: 1.5px solid #2e2e2e; }
+    .seat-avatar svg { width: 18px; height: 18px; }
+    .btn-resend { background: transparent; color: #888; border: 1px solid #2a2a2a; font-size: 0.75rem; padding: 3px 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; margin-left: 8px; }
+    .btn-resend:hover { border-color: #1a8cff; color: #1a8cff; }
     .invite-section { background: #111; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
     .invite-label { font-size: 0.75rem; color: #ffffff; margin-bottom: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
     .invite-link-row { display: flex; gap: 8px; align-items: center; }
@@ -265,7 +270,6 @@
     container.innerHTML = '';
 
     teams.forEach(function(team) {
-      const pct = Math.round((team.seatsUsed / team.seatLimit) * 100);
       const isFull = team.seatsUsed >= team.seatLimit;
       const badgeClass = team.accessType === 'subscription' ? 'badge-subscription' : 'badge-course';
       const badgeLabel = team.accessType === 'subscription' ? 'Subscription Team' : 'Course Team';
@@ -276,9 +280,13 @@
       const activeMembersHTML = activeMembers.length === 0
         ? '<div class="empty-members">No members added yet. Share your invite link or add members below!</div>'
         : activeMembers.map(function(m) {
+            const showResend = m.invite_status === 'invited' || m.invite_status === 'opened';
+            const resendBtn = showResend
+              ? '<button class="btn-resend" data-resend-email="' + m.email + '" data-resend-team="' + team.id + '">Resend</button>'
+              : '';
             return '<div class="member-row">' +
               '<div class="member-info">' +
-                '<div class="member-email">' + m.email + '</div>' +
+                '<div class="member-email">' + m.email + resendBtn + '</div>' +
                 '<div class="member-status ' + (m.invite_status || 'invited') + '">' + getStatusLabel(m.invite_status) + '</div>' +
               '</div>' +
               '<button class="btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
@@ -321,9 +329,22 @@
           '<div class="team-title">' + badgeLabel + '</div>' +
           '<span class="badge ' + badgeClass + '">' + team.seatsUsed + '/' + team.seatLimit + ' seats used</span>' +
         '</div>' +
-        '<div class="seats-bar-wrap">' +
+        '<div class="seats-wrap">' +
           '<div class="seats-label">' + (isFull ? '⚠️ Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
-          '<div class="seats-bar"><div class="seats-fill ' + (isFull ? 'full' : '') + '" style="width:' + pct + '%"></div></div>' +
+          '<div class="seats-avatars">' +
+            Array.from({ length: team.seatLimit }, function(_, i) {
+              var filled = i < team.seatsUsed;
+              var fullClass = filled && isFull ? ' full' : '';
+              var avatarClass = filled ? 'filled' + fullClass : 'empty';
+              var iconColor = filled ? '#ffffff' : '#3a3a3a';
+              return '<div class="seat-avatar ' + avatarClass + '" title="' + (filled ? 'Seat in use' : 'Empty seat') + '">' +
+                '<svg viewBox="0 0 24 24" fill="' + iconColor + '" xmlns="http://www.w3.org/2000/svg">' +
+                  '<circle cx="12" cy="8" r="4"/>' +
+                  '<path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>' +
+                '</svg>' +
+              '</div>';
+            }).join('') +
+          '</div>' +
         '</div>' +
         '<div class="invite-section">' +
           '<div class="invite-label">Your Invite Link</div>' +
@@ -343,6 +364,9 @@
       container.appendChild(card);
     });
 
+    container.querySelectorAll('[data-resend-email]').forEach(function(btn) {
+      btn.addEventListener('click', function() { resendInvite(btn.getAttribute('data-resend-email'), btn); });
+    });
     container.querySelectorAll('[data-readd-team]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         const teamId = btn.getAttribute('data-readd-team');
@@ -381,6 +405,44 @@
     container.querySelectorAll('[data-team]').forEach(function(btn) {
       btn.addEventListener('click', function() { removeMember(btn.getAttribute('data-team'), btn.getAttribute('data-email')); });
     });
+  }
+
+  async function resendInvite(email, btn) {
+    const original = btn.textContent;
+    btn.textContent = 'Sending...';
+    btn.disabled = true;
+    try {
+      const res = await fetch(API_BASE + '/resend-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberEmail: email })
+      });
+      if (res.ok) {
+        btn.textContent = '✓ Sent';
+        btn.style.color = '#22c55e';
+        btn.style.borderColor = '#22c55e';
+        setTimeout(function() {
+          btn.textContent = original;
+          btn.style.color = '';
+          btn.style.borderColor = '';
+          btn.disabled = false;
+        }, 3000);
+      } else {
+        btn.textContent = 'Failed';
+        btn.style.color = '#ff4444';
+        setTimeout(function() {
+          btn.textContent = original;
+          btn.style.color = '';
+          btn.disabled = false;
+        }, 3000);
+      }
+    } catch (e) {
+      btn.textContent = 'Failed';
+      setTimeout(function() {
+        btn.textContent = original;
+        btn.disabled = false;
+      }, 3000);
+    }
   }
 
   async function addMember(teamId, token) {
