@@ -420,7 +420,7 @@
     try {
       const res = await fetch(API_BASE + '/resend-invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
         body: JSON.stringify({ memberEmail: email })
       });
       if (res.ok) {
@@ -460,7 +460,7 @@
     try {
       const res = await fetch(API_BASE + '/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
         body: JSON.stringify({ token: token, memberEmail: email, addedByLeader: true })
       });
       const data = await res.json();
@@ -476,7 +476,7 @@
     try {
       const res = await fetch(API_BASE + '/remove-member', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
         body: JSON.stringify({ teamId: teamId, memberEmail: memberEmail })
       });
       if (res.ok) await loadDashboard(currentSession.accessToken);
@@ -489,7 +489,7 @@
   try {
     const res = await fetch(API_BASE + '/sync-status', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
       body: JSON.stringify({ teamId: teamId })
     });
     const data = await res.json();
