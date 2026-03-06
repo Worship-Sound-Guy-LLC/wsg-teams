@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
-const TEAMS_PRODUCT_ID = 'prod_U2vN9o0joPvgXD';
+const TEAMS_PRODUCT_ID = 'prod_U3GrJPneAIsOqB';
 
 const TEAMS_LEADER_TAG_ID = 227715;
 const FREE_ACCESS_TAG_ID = 228295; // Triggers Circle automation to downgrade member
