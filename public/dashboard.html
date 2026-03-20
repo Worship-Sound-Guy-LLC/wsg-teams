@@ -520,25 +520,6 @@
     }
   }
 
-  async function addMember(teamId, token) {
-    const emailInput = document.getElementById('addEmail-' + teamId);
-    const errorEl = document.getElementById('addError-' + teamId);
-    const email = emailInput.value.trim();
-    errorEl.textContent = '';
-    if (!email) { errorEl.textContent = 'Please enter an email.'; return; }
-    try {
-      const res = await fetch(API_BASE + '/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
-        body: JSON.stringify({ token: token, memberEmail: email, addedByLeader: true })
-      });
-      const data = await res.json();
-      if (!res.ok) { errorEl.textContent = data.error; return; }
-      await loadDashboard(currentSession.accessToken);
-    } catch (e) {
-      errorEl.textContent = 'Something went wrong. Please try again.';
-    }
-  }
 
   async function addMember(teamId, token) {
     const emailInput = document.getElementById('addEmail-' + teamId);
