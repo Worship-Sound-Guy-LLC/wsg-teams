@@ -121,6 +121,14 @@ async function handleCourseTeamCreated(session) {
     token: token
   });
 
+// Add leader as first member so seat count is accurate
+await supabase.from('team_members').insert({
+  team_id: team.id,
+  member_email: leaderEmail.toLowerCase(),
+  status: 'active',
+  invite_status: 'active'
+});
+  
   console.log(`Course team created for ${leaderEmail}, course: ${course.name}, token: ${token}`);
 
   await addCircleSpaceMember(leaderEmail, course.circleSpaceId);
