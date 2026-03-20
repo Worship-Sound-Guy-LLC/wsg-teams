@@ -528,7 +528,7 @@
     var addBtn = document.querySelector('[data-add-team="' + teamId + '"]');
     var isCourseTeam = addBtn && addBtn.closest('.tab-panel') && addBtn.closest('.tab-panel').querySelector('.course-note');
     if (isCourseTeam) {
-      var confirmed = confirm('Permanent Access Warning\n\nYou are about to give ' + email + ' permanent access to this course.\n\nCourse access cannot be removed once granted. Are you sure you want to continue?');
+      var confirmed = confirm('⚠️ Warning:\n\nOnce you give this user access to this course, access cannot be revoked. Their seat cannot be swapped for another user later.\n\nAre you sure you want to continue?');
       if (!confirmed) return;
     }
 
