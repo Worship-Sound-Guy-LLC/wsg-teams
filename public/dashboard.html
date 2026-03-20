@@ -497,4 +497,93 @@
       });
       if (res.ok) {
         btn.textContent = '✓ Sent';
-        btn.style.color = '#22c
+        btn.style.color = '#22c55e';
+        btn.style.borderColor = '#22c55e';
+        setTimeout(function() {
+          btn.textContent = original;
+          btn.style.color = '';
+          btn.style.borderColor = '';
+          btn.disabled = false;
+        }, 3000);
+      } else {
+        btn.textContent = 'Failed';
+        btn.style.color = '#ff4444';
+        setTimeout(function() {
+          btn.textContent = original;
+          btn.style.color = '';
+          btn.disabled = false;
+        }, 3000);
+      }
+    } catch (e) {
+      btn.textContent = 'Failed';
+      setTimeout(function() { btn.textContent = original; btn.disabled = false; }, 3000);
+    }
+  }
+
+  async function addMember(teamId, token) {
+    const emailInput = document.getElementById('addEmail-' + teamId);
+    const errorEl = document.getElementById('addError-' + teamId);
+    const email = emailInput.value.trim();
+    errorEl.textContent = '';
+    if (!email) { errorEl.textContent = 'Please enter an email.'; return; }
+    try {
+      const res = await fetch(API_BASE + '/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
+        body: JSON.stringify({ token: token, memberEmail: email, addedByLeader: true })
+      });
+      const data = await res.json();
+      if (!res.ok) { errorEl.textContent = data.error; return; }
+      await loadDashboard(currentSession.accessToken);
+    } catch (e) {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+    }
+  }
+
+  async function removeMember(teamId, memberEmail) {
+    if (!confirm('Are you sure you want to remove ' + memberEmail + ' from this team?\n\nNote: You will not be able to re-add them for 2 hours.')) return;
+    try {
+      const res = await fetch(API_BASE + '/remove-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
+        body: JSON.stringify({ teamId: teamId, memberEmail: memberEmail })
+      });
+      if (res.ok) await loadDashboard(currentSession.accessToken);
+    } catch (e) { alert('Something went wrong. Please try again.'); }
+  }
+
+  async function syncStatus(teamId, btn) {
+    btn.textContent = 'Syncing...';
+    btn.disabled = true;
+    try {
+      const res = await fetch(API_BASE + '/sync-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
+        body: JSON.stringify({ teamId: teamId })
+      });
+      await loadDashboard(currentSession.accessToken);
+    } catch (e) {
+      btn.textContent = 'Check Enrollment Status';
+      btn.disabled = false;
+    }
+  }
+
+  function copyLink(teamId) {
+    const text = document.getElementById('link-' + teamId).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      document.getElementById('copied-' + teamId).style.display = 'block';
+      setTimeout(function() { document.getElementById('copied-' + teamId).style.display = 'none'; }, 2000);
+    });
+  }
+
+  function redirectToLogin() {
+    sessionStorage.removeItem('wsg_access_token');
+    sessionStorage.removeItem('wsg_refresh_token');
+    window.location.href = '/';
+  }
+
+  document.getElementById('signoutBtn').addEventListener('click', redirectToLogin);
+</script>
+
+</body>
+</html>
