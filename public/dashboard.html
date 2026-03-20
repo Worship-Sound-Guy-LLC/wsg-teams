@@ -316,7 +316,7 @@
     teams.forEach(function(team, index) {
       var label = team.accessType === 'subscription'
         ? 'Subscription Team'
-        : (COURSE_NAMES[team.courseId] || team.courseName || 'Course Team');
+        : (COURSE_NAMES[team.courseId] || team.courseName || 'Central Unlimited Team');
       var btn = document.createElement('button');
       btn.className = 'tab-btn' + (index === 0 ? ' active' : '');
       btn.textContent = label;
@@ -338,7 +338,7 @@
       var isCourse = team.accessType === 'course';
       var isFull = team.seatsUsed >= team.seatLimit;
       var badgeClass = isCourse ? 'badge-course' : 'badge-subscription';
-      var teamTitle = isCourse ? (COURSE_NAMES[team.courseId] || team.courseName || 'Course Team') : 'Subscription Team';
+      var teamTitle = isCourse ? (COURSE_NAMES[team.courseId] || team.courseName || 'Course Team') : 'Central Unlimited Team';
 
       var activeMembers = team.members.filter(function(m) { return m.status !== 'revoked'; });
       var revokedMembers = team.members.filter(function(m) { return m.status === 'revoked'; });
