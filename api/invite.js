@@ -4,7 +4,41 @@ const CIRCLE_API_TOKEN = process.env.CIRCLE_API_TOKEN;
 const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 
 const TEAMS_MEMBER_TAG_ID = 227713;
-const READD_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+const READD_COOLDOWN_MS = 2 * 60 * 60 * 1000;
+
+const COURSE_PRODUCTS = {
+  'prod_UAn9cpCjcImRfG': {
+    name: 'Sound Guy Essentials TEAMS ACCESS',
+    circleSpaceId: 2092678,
+    circleTagId: 234453,
+    seatLimit: 5
+  },
+  'prod_UAn9THENtsnfsm': {
+    name: 'X32 Masterclass TEAMS ACCESS',
+    circleSpaceId: 2092835,
+    circleTagId: 234457,
+    seatLimit: 5
+  },
+  'prod_UAnDez8uy1sZhD': {
+    name: 'Drums Masterclass TEAMS ACCESS',
+    circleSpaceId: 2092837,
+    circleTagId: 234456,
+    seatLimit: 5
+  },
+  'prod_UAnE6jcYX7kICg': {
+    name: 'EQ Secrets Masterclass TEAMS ACCESS',
+    circleSpaceId: 2092710,
+    circleTagId: 234455,
+    seatLimit: 5
+  },
+  'prod_UAnBTrYoe3YyOy': {
+    name: 'Sunday Vocal Formula TEAMS ACCESS',
+    circleSpaceId: 2331083,
+    circleTagId: 234454,
+    seatLimit: 5
+  },
+  // Add more courses here as needed
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -16,7 +50,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Token and email are required' });
   }
 
-  // Look up the invite token
   const { data: invite, error: inviteError } = await supabase
     .from('invite_tokens')
     .select('*, teams(*)')
@@ -30,10 +63,9 @@ export default async function handler(req, res) {
 
   const team = invite.teams;
   if (team.status !== 'active') {
-    return res.status(400).json({ error: 'This team subscription is no longer active' });
+    return res.status(400).json({ error: 'This team is no longer active' });
   }
 
-  // Check seat limit - only count non-revoked members
   const { count } = await supabase
     .from('team_members')
     .select('id', { count: 'exact' })
@@ -44,7 +76,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'This team is full. The team leader needs to contact support to add more seats.' });
   }
 
-  // Check if this email is already an active (non-revoked) member
   const { data: existingMember } = await supabase
     .from('team_members')
     .select('id, status')
@@ -57,53 +88,89 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'This email is already a member of this team' });
   }
 
-  // Check for a revoked record — enforce 2hr cooldown before re-adding
-  const { data: revokedMember } = await supabase
-    .from('team_members')
-    .select('id, revoked_at')
-    .eq('team_id', team.id)
-    .eq('member_email', memberEmail.toLowerCase())
-    .eq('status', 'revoked')
-    .single();
+  // ---- Subscription flow ----
+  if (team.access_type === 'subscription') {
+    const { data: revokedMember } = await supabase
+      .from('team_members')
+      .select('id, revoked_at')
+      .eq('team_id', team.id)
+      .eq('member_email', memberEmail.toLowerCase())
+      .eq('status', 'revoked')
+      .single();
 
-  if (revokedMember?.revoked_at) {
-    const revokedAt = new Date(revokedMember.revoked_at).getTime();
-    const elapsed = Date.now() - revokedAt;
-    if (elapsed < READD_COOLDOWN_MS) {
-      const minutesRemaining = Math.ceil((READD_COOLDOWN_MS - elapsed) / 60000);
-      const hoursRemaining = Math.floor(minutesRemaining / 60);
-      const minsLeft = minutesRemaining % 60;
-      const timeLeft = hoursRemaining > 0
-        ? `${hoursRemaining}h ${minsLeft}m`
-        : `${minsLeft}m`;
-      return res.status(400).json({
-        error: `This member was recently removed. Re-adds are unavailable for 2 hours after removal. Please try again in ${timeLeft}.`
-      });
+    if (revokedMember?.revoked_at) {
+      const revokedAt = new Date(revokedMember.revoked_at).getTime();
+      const elapsed = Date.now() - revokedAt;
+      if (elapsed < READD_COOLDOWN_MS) {
+        const minutesRemaining = Math.ceil((READD_COOLDOWN_MS - elapsed) / 60000);
+        const hoursRemaining = Math.floor(minutesRemaining / 60);
+        const minsLeft = minutesRemaining % 60;
+        const timeLeft = hoursRemaining > 0
+          ? `${hoursRemaining}h ${minsLeft}m`
+          : `${minsLeft}m`;
+        return res.status(400).json({
+          error: `This member was recently removed. Re-adds are unavailable for 2 hours after removal. Please try again in ${timeLeft}.`
+        });
+      }
     }
+
+    const { circleId, alreadyMember } = await addCircleMember(memberEmail, true);
+    const inviteStatus = alreadyMember ? 'active' : (addedByLeader ? 'invited' : 'active');
+
+    if (revokedMember) {
+      const { error: updateError } = await supabase
+        .from('team_members')
+        .update({
+          status: 'active',
+          invite_status: inviteStatus,
+          member_circle_id: circleId,
+          revoked_at: null
+        })
+        .eq('id', revokedMember.id);
+
+      if (updateError) {
+        return res.status(500).json({ error: 'Failed to re-add member' });
+      }
+    } else {
+      const { error: insertError } = await supabase
+        .from('team_members')
+        .insert({
+          team_id: team.id,
+          member_email: memberEmail.toLowerCase(),
+          member_circle_id: circleId,
+          status: 'active',
+          invite_status: inviteStatus
+        });
+
+      if (insertError) {
+        return res.status(500).json({ error: 'Failed to add member' });
+      }
+    }
+
+    return res.status(200).json({ success: true, message: 'You have been added to the team!' });
   }
 
-  // Add to Circle and apply TeamsMember tag
-  const { circleId, alreadyMember } = await addCircleMember(memberEmail);
+  // ---- Course flow ----
+  if (team.access_type === 'course') {
+    const courseConfig = COURSE_PRODUCTS[team.stripe_product_id];
 
-  const inviteStatus = alreadyMember ? 'active' : (addedByLeader ? 'invited' : 'active');
-
-  if (revokedMember) {
-    // Re-activate the existing record, clear revoked_at
-    const { error: updateError } = await supabase
-      .from('team_members')
-      .update({
-        status: 'active',
-        invite_status: inviteStatus,
-        member_circle_id: circleId,
-        revoked_at: null
-      })
-      .eq('id', revokedMember.id);
-
-    if (updateError) {
-      return res.status(500).json({ error: 'Failed to re-add member' });
+    if (!courseConfig) {
+      console.error('No course config found for team:', team.id, 'product:', team.stripe_product_id);
+      return res.status(500).json({ error: 'Course configuration not found' });
     }
-  } else {
-    // Fresh insert for brand new members
+
+    const { circleId, alreadyMember } = await addCircleMember(memberEmail, false);
+
+    await addCircleSpaceMember(memberEmail, courseConfig.circleSpaceId);
+
+    if (circleId) {
+      await addCircleTag(circleId, courseConfig.circleTagId);
+    } else {
+      await addCircleTagByEmail(memberEmail, courseConfig.circleTagId);
+    }
+
+    const inviteStatus = alreadyMember ? 'active' : (addedByLeader ? 'invited' : 'active');
+
     const { error: insertError } = await supabase
       .from('team_members')
       .insert({
@@ -115,14 +182,16 @@ export default async function handler(req, res) {
       });
 
     if (insertError) {
-      return res.status(500).json({ error: 'Failed to add member' });
+      return res.status(500).json({ error: 'Failed to add course team member' });
     }
+
+    return res.status(200).json({ success: true, message: 'You have been added to the course team!' });
   }
 
-  return res.status(200).json({ success: true, message: 'You have been added to the team!' });
+  return res.status(400).json({ error: 'Unknown team type' });
 }
 
-async function addCircleMember(email) {
+async function addCircleMember(email, applyTeamsMemberTag) {
   const inviteRes = await fetch(
     'https://app.circle.so/api/admin/v2/community_members',
     {
@@ -147,15 +216,33 @@ async function addCircleMember(email) {
 
   console.log('Circle member ID:', circleId, '| Already member:', alreadyMember);
 
-  if (circleId) {
+  if (circleId && applyTeamsMemberTag) {
     await addCircleTag(circleId, TEAMS_MEMBER_TAG_ID);
   }
 
   return { circleId, alreadyMember };
 }
 
-// Safely add a tag by fetching existing tags first and merging.
-// Required because PATCH member_tag_ids REPLACES all tags.
+async function addCircleSpaceMember(email, spaceId) {
+  const res = await fetch(
+    'https://app.circle.so/api/admin/v2/space_members',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        community_id: parseInt(CIRCLE_COMMUNITY_ID),
+        space_id: spaceId,
+        email: email
+      })
+    }
+  );
+  const data = await res.json();
+  console.log(`Add ${email} to space ${spaceId}:`, data?.message);
+}
+
 async function addCircleTag(memberId, tagId) {
   const getRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
@@ -183,4 +270,18 @@ async function addCircleTag(memberId, tagId) {
     }
   );
   console.log(`Add tag ${tagId} to member ${memberId} - PATCH status:`, patchRes.status);
+}
+
+async function addCircleTagByEmail(email, tagId) {
+  const res = await fetch(
+    `https://app.circle.so/api/admin/v2/community_members?email=${encodeURIComponent(email)}&community_id=${CIRCLE_COMMUNITY_ID}`,
+    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+  );
+  const data = await res.json();
+  const memberId = data?.records?.[0]?.id || null;
+  if (!memberId) {
+    console.log(`Circle member not found for email: ${email}`);
+    return;
+  }
+  await addCircleTag(memberId, tagId);
 }

@@ -5,17 +5,11 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   const { email } = req.query;
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
-  }
+  if (!email) return res.status(400).json({ error: 'Email is required' });
 
   const { data: teams, error } = await supabase
     .from('teams')
@@ -24,8 +18,8 @@ export default async function handler(req, res) {
       access_type,
       seat_limit,
       status,
-      course_space_id,
-      converted_from_individual,
+      course_id,
+      stripe_product_id,
       created_at,
       team_members (
         id,
@@ -51,23 +45,34 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'No active teams found for this email' });
   }
 
+  const COURSE_NAMES = {
+    2092678: 'Sound Guy Essentials',
+    2092835: 'X32 Masterclass',
+    2092837: 'Drums Masterclass',
+    2092710: 'EQ Secrets Masterclass',
+    2331083: 'Sunday Vocal Formula'
+  };
+
   const formattedTeams = teams.map(team => {
     const activeMembers = team.team_members.filter(m => m.status === 'active');
-    const allMembers = team.team_members; // includes revoked, for display purposes
-    const inviteToken = team.invite_tokens?.[0]?.token;
+    const allMembers = team.team_members;
+    const inviteToken = team.invite_tokens?.find(t => !t.used)?.token || team.invite_tokens?.[0]?.token;
+    const courseName = team.course_id ? (COURSE_NAMES[team.course_id] || 'Course Team') : null;
 
     return {
       id: team.id,
       accessType: team.access_type,
       seatLimit: team.seat_limit,
-      seatsUsed: activeMembers.length,       // seat count = active only
+      seatsUsed: activeMembers.length,
       seatsRemaining: team.seat_limit - activeMembers.length,
       status: team.status,
-      courseSpaceId: team.course_space_id,
+      courseId: team.course_id,
+      stripeProductId: team.stripe_product_id,
+      courseName: courseName,
       inviteLink: inviteToken ? `${process.env.SITE_URL}/join?token=${inviteToken}` : null,
       members: allMembers.map(m => ({
         email: m.member_email,
-        status: m.status,                    // 'active' or 'revoked' — used by dashboard to filter/display
+        status: m.status,
         joinedAt: m.joined_at,
         invite_status: m.invite_status
       }))
