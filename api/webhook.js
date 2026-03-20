@@ -12,36 +12,37 @@ const FREE_ACCESS_TAG_ID = 228295;
 
 // ⚠️ These are TEST mode product IDs — replace with live IDs before merging to main
 const COURSE_PRODUCTS = {
-  'prod_UBSQK5NUmHbbTh': {
+  'prod_UAn9cpCjcImRfG': {
     name: 'Sound Guy Essentials TEAMS ACCESS',
     circleSpaceId: 2092678,
     circleTagId: 234453,
     seatLimit: 5
   },
-  'prod_UBSRhGp7YG5nJl': {
+  'prod_UAn9THENtsnfsm': {
     name: 'X32 Masterclass TEAMS ACCESS',
     circleSpaceId: 2092835,
     circleTagId: 234457,
     seatLimit: 5
   },
-  'prod_UBSRmHzk5b9BiH': {
+  'prod_UAnDez8uy1sZhD': {
     name: 'Drums Masterclass TEAMS ACCESS',
     circleSpaceId: 2092837,
     circleTagId: 234456,
     seatLimit: 5
   },
-  'prod_UBSRn45VAggtPj': {
+  'prod_UAnE6jcYX7kICg': {
     name: 'EQ Secrets Masterclass TEAMS ACCESS',
     circleSpaceId: 2092710,
     circleTagId: 234455,
     seatLimit: 5
   },
-  'prod_UBSRodTW44poG0': {
+  'prod_UAnBTrYoe3YyOy': {
     name: 'Sunday Vocal Formula TEAMS ACCESS',
     circleSpaceId: 2331083,
     circleTagId: 234454,
     seatLimit: 5
   },
+  // Add more courses here as needed
 };
 
 export const config = { api: { bodyParser: false } };
