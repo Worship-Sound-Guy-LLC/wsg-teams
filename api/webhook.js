@@ -11,8 +11,7 @@ const TEAMS_LEADER_TAG_ID = 227715;
 const FREE_ACCESS_TAG_ID = 228295;
 
 // A la carte course products map
-// Each key is a Stripe TEST mode product ID
-// Replace with live product IDs before merging to main
+// Replace test product IDs with live product IDs before merging to main ⚠️
 const COURSE_PRODUCTS = {
   'prod_UBSQK5NUmHbbTh': {
     name: 'Sound Guy Essentials TEAMS ACCESS',
@@ -83,7 +82,7 @@ export default async function handler(req, res) {
   res.status(200).json({ received: true });
 }
 
-// ---- NEW: A la carte course team handler ----
+// ---- A la carte course team handler ----
 
 async function handleCourseTeamCreated(session) {
   // Only handle one-time payments, not subscription checkouts
@@ -112,6 +111,7 @@ async function handleCourseTeamCreated(session) {
     stripe_subscription_id: null,
     access_type: 'course',
     course_id: course.circleSpaceId,
+    stripe_product_id: productId,
     seat_limit: course.seatLimit,
     status: 'active'
   }).select().single();
@@ -134,7 +134,7 @@ async function handleCourseTeamCreated(session) {
   await addCircleTagByEmail(leaderEmail, course.circleTagId);
 }
 
-// ---- Existing handlers (unchanged) ----
+// ---- Subscription handlers (unchanged) ----
 
 async function handleSubscriptionCreated(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
@@ -213,7 +213,6 @@ async function getCircleMemberId(email) {
   return data?.records?.[0]?.id || null;
 }
 
-// NEW: Add member to a Circle space directly
 async function addCircleSpaceMember(email, spaceId) {
   const res = await fetch(
     'https://app.circle.so/api/admin/v2/space_members',
@@ -241,6 +240,8 @@ async function addCircleTag(memberId, tagId) {
   );
   const member = await getRes.json();
   const existingTagIds = (member.member_tags || []).map(t => t.id);
+
+  console.log('Existing Circle tags:', existingTagIds);
 
   if (existingTagIds.includes(tagId)) {
     console.log(`Tag ${tagId} already present on member ${memberId}, skipping`);
