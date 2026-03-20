@@ -102,8 +102,8 @@ async function handleCourseTeamCreated(session) {
 
   const { data: team, error } = await supabase.from('teams').insert({
     leader_email: leaderEmail,
-    stripe_customer_id: session.customer,
-    stripe_subscription_id: null,
+    stripe_customer_id: session.customer || null,
+    stripe_subscription_id: session.id,  // store checkout session ID as fallback reference
     access_type: 'course',
     course_id: course.circleSpaceId,
     stripe_product_id: productId,
