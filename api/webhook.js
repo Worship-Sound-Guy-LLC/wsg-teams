@@ -8,7 +8,44 @@ const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 const TEAMS_PRODUCT_ID = 'prod_U3GrJPneAIsOqB';
 
 const TEAMS_LEADER_TAG_ID = 227715;
-const FREE_ACCESS_TAG_ID = 228295; // Triggers Circle automation to downgrade member
+const FREE_ACCESS_TAG_ID = 228295;
+
+// A la carte course products map
+// Each key is a Stripe TEST mode product ID
+// Replace with live product IDs before merging to main
+const COURSE_PRODUCTS = {
+  'prod_UBSQK5NUmHbbTh': {
+    name: 'Sound Guy Essentials TEAMS ACCESS',
+    circleSpaceId: 2092678,
+    circleTagId: 234453,
+    seatLimit: 5
+  },
+  'prod_UBSRhGp7YG5nJl': {
+    name: 'X32 Masterclass TEAMS ACCESS',
+    circleSpaceId: 2092835,
+    circleTagId: 234457,
+    seatLimit: 5
+  },
+  'prod_UBSRmHzk5b9BiH': {
+    name: 'Drums Masterclass TEAMS ACCESS',
+    circleSpaceId: 2092837,
+    circleTagId: 234456,
+    seatLimit: 5
+  },
+  'prod_UBSRn45VAggtPj': {
+    name: 'EQ Secrets Masterclass TEAMS ACCESS',
+    circleSpaceId: 2092710,
+    circleTagId: 234455,
+    seatLimit: 5
+  },
+  'prod_UBSRodTW44poG0': {
+    name: 'Sunday Vocal Formula TEAMS ACCESS',
+    circleSpaceId: 2331083,
+    circleTagId: 234454,
+    seatLimit: 5
+  },
+  // Add more courses here as needed
+};
 
 export const config = { api: { bodyParser: false } };
 
@@ -39,10 +76,65 @@ export default async function handler(req, res) {
     await handleSubscriptionCreated(event.data.object);
   } else if (event.type === 'customer.subscription.deleted') {
     await handleSubscriptionDeleted(event.data.object);
+  } else if (event.type === 'checkout.session.completed') {
+    await handleCourseTeamCreated(event.data.object);
   }
 
   res.status(200).json({ received: true });
 }
+
+// ---- NEW: A la carte course team handler ----
+
+async function handleCourseTeamCreated(session) {
+  // Only handle one-time payments, not subscription checkouts
+  if (session.mode !== 'payment') return;
+
+  // Get the product ID from the line items
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+  const productId = lineItems.data[0]?.price?.product;
+
+  // Check if this is a known course team product
+  const course = COURSE_PRODUCTS[productId];
+  if (!course) return;
+
+  const leaderEmail = session.customer_details?.email;
+  if (!leaderEmail) {
+    console.error('No email found on checkout session:', session.id);
+    return;
+  }
+
+  const token = generateToken();
+
+  // Create course team in Supabase
+  const { data: team, error } = await supabase.from('teams').insert({
+    leader_email: leaderEmail,
+    stripe_customer_id: session.customer,
+    stripe_subscription_id: null,
+    access_type: 'course',
+    course_id: course.circleSpaceId,
+    seat_limit: course.seatLimit,
+    status: 'active'
+  }).select().single();
+
+  if (error) {
+    console.error('Error creating course team:', error);
+    return;
+  }
+
+  // Create invite token
+  await supabase.from('invite_tokens').insert({
+    team_id: team.id,
+    token: token
+  });
+
+  console.log(`Course team created for ${leaderEmail}, course: ${course.name}, token: ${token}`);
+
+  // Add leader to Circle space + apply course teammate tag
+  await addCircleSpaceMember(leaderEmail, course.circleSpaceId);
+  await addCircleTagByEmail(leaderEmail, course.circleTagId);
+}
+
+// ---- Existing handlers (unchanged) ----
 
 async function handleSubscriptionCreated(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
@@ -52,7 +144,6 @@ async function handleSubscriptionCreated(subscription) {
   const leaderEmail = customer.email;
   const token = generateToken();
 
-  // Create team in Supabase
   const { data: team, error } = await supabase.from('teams').insert({
     leader_email: leaderEmail,
     stripe_customer_id: subscription.customer,
@@ -67,15 +158,12 @@ async function handleSubscriptionCreated(subscription) {
     return;
   }
 
-  // Create invite token
   await supabase.from('invite_tokens').insert({
     team_id: team.id,
     token: token
   });
 
   console.log(`Team created for ${leaderEmail}, token: ${token}`);
-
-  // Add TeamsLeader tag to leader in Circle (safely, preserving existing tags)
   await addCircleTagByEmail(leaderEmail, TEAMS_LEADER_TAG_ID);
 }
 
@@ -83,7 +171,6 @@ async function handleSubscriptionDeleted(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
   if (productId !== TEAMS_PRODUCT_ID) return;
 
-  // Find the team
   const { data: team } = await supabase
     .from('teams')
     .select('id')
@@ -92,23 +179,18 @@ async function handleSubscriptionDeleted(subscription) {
 
   if (!team) return;
 
-  // Get all active members
   const { data: members } = await supabase
     .from('team_members')
     .select('member_email, member_circle_id')
     .eq('team_id', team.id)
     .eq('status', 'active');
 
-  // Apply FreeAccess tag to each member to trigger Circle automation.
-  // Circle workflow "Team Member Removed" handles access group downgrade
-  // and TeamsMember tag removal automatically.
   if (members?.length) {
     for (const member of members) {
       await applyFreeAccessTag(member.member_email, member.member_circle_id);
     }
   }
 
-  // Revoke all members and team in Supabase
   await supabase.from('team_members')
     .update({ status: 'revoked' })
     .eq('team_id', team.id);
@@ -128,12 +210,30 @@ async function getCircleMemberId(email) {
     { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
   );
   const data = await res.json();
-  // Circle v2 returns records[], not community_members[]
   return data?.records?.[0]?.id || null;
 }
 
-// Safely add a tag by fetching existing tags first and merging.
-// Required because PATCH member_tag_ids REPLACES all tags.
+// NEW: Add member to a Circle space directly
+async function addCircleSpaceMember(email, spaceId) {
+  const res = await fetch(
+    'https://app.circle.so/api/admin/v2/space_members',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        community_id: parseInt(CIRCLE_COMMUNITY_ID),
+        space_id: spaceId,
+        email: email
+      })
+    }
+  );
+  const data = await res.json();
+  console.log(`Add ${email} to space ${spaceId}:`, data?.message);
+}
+
 async function addCircleTag(memberId, tagId) {
   const getRes = await fetch(
     `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
@@ -141,8 +241,6 @@ async function addCircleTag(memberId, tagId) {
   );
   const member = await getRes.json();
   const existingTagIds = (member.member_tags || []).map(t => t.id);
-
-  console.log('Existing Circle tags:', existingTagIds);
 
   if (existingTagIds.includes(tagId)) {
     console.log(`Tag ${tagId} already present on member ${memberId}, skipping`);
@@ -163,11 +261,7 @@ async function addCircleTag(memberId, tagId) {
   console.log(`Add tag ${tagId} to member ${memberId} - PATCH status:`, patchRes.status);
 }
 
-// Apply FreeAccess tag — overwrites all tags with just FreeAccess.
-// Circle automation "Team Member Removed" handles the rest:
-// removes Teams access group, adds Free tier, removes TeamsMember tag after 1hr.
 async function applyFreeAccessTag(email, circleIdFromDb) {
-  // Prefer the stored Circle ID, fall back to lookup by email
   const memberId = circleIdFromDb || await getCircleMemberId(email);
   if (!memberId) {
     console.log(`Circle member not found for email: ${email}`);
@@ -188,7 +282,6 @@ async function applyFreeAccessTag(email, circleIdFromDb) {
   console.log(`Applied FreeAccess tag to member ${memberId} (${email}) - PATCH status:`, patchRes.status);
 }
 
-// Convenience wrapper for adding tags by email
 async function addCircleTagByEmail(email, tagId) {
   const memberId = await getCircleMemberId(email);
   if (!memberId) {
