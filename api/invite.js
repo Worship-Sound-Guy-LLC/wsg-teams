@@ -6,7 +6,6 @@ const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 const TEAMS_MEMBER_TAG_ID = 227713;
 const READD_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
-// ⚠️ These are TEST mode product IDs — replace with live IDs before merging to main
 const COURSE_PRODUCTS = {
   'prod_UAn9cpCjcImRfG': {
     name: 'Sound Guy Essentials TEAMS ACCESS',
