@@ -56,7 +56,7 @@ export default async function handler(req, res) {
   const formattedTeams = teams.map(team => {
     const activeMembers = team.team_members.filter(m => m.status === 'active');
     const allMembers = team.team_members;
-    const inviteToken = team.invite_tokens?.[0]?.token;
+    const inviteToken = team.invite_tokens?.find(t => !t.used)?.token || team.invite_tokens?.[0]?.token;
     const courseName = team.course_id ? (COURSE_NAMES[team.course_id] || 'Course Team') : null;
 
     return {
