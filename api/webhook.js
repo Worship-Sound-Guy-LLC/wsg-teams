@@ -10,7 +10,6 @@ const TEAMS_PRODUCT_ID = 'prod_U3GrJPneAIsOqB';
 const TEAMS_LEADER_TAG_ID = 227715;
 const FREE_ACCESS_TAG_ID = 228295;
 
-// ⚠️ These are TEST mode product IDs — replace with live IDs before merging to main
 const COURSE_PRODUCTS = {
   'prod_UAn9cpCjcImRfG': {
     name: 'Sound Guy Essentials TEAMS ACCESS',
