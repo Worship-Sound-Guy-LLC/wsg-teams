@@ -6,38 +6,53 @@ const CIRCLE_COMMUNITY_ID = process.env.CIRCLE_COMMUNITY_ID;
 const TEAMS_MEMBER_TAG_ID = 227713;
 const READD_COOLDOWN_MS = 2 * 60 * 60 * 1000;
 
+// Keyed by Stripe product ID — for purchases made via Stripe payment links
+// ⚠️ These are LIVE mode product IDs
 const COURSE_PRODUCTS = {
   'prod_UAn9cpCjcImRfG': {
-    name: 'Sound Guy Essentials TEAMS ACCESS',
     circleSpaceId: 2092678,
-    circleTagId: 234453,
-    seatLimit: 5
+    circleTagId: 234453
   },
   'prod_UAn9THENtsnfsm': {
-    name: 'X32 Masterclass TEAMS ACCESS',
     circleSpaceId: 2092835,
-    circleTagId: 234457,
-    seatLimit: 5
+    circleTagId: 234457
   },
   'prod_UAnDez8uy1sZhD': {
-    name: 'Drums Masterclass TEAMS ACCESS',
     circleSpaceId: 2092837,
-    circleTagId: 234456,
-    seatLimit: 5
+    circleTagId: 234456
   },
   'prod_UAnE6jcYX7kICg': {
-    name: 'EQ Secrets Masterclass TEAMS ACCESS',
     circleSpaceId: 2092710,
-    circleTagId: 234455,
-    seatLimit: 5
+    circleTagId: 234455
   },
   'prod_UAnBTrYoe3YyOy': {
-    name: 'Sunday Vocal Formula TEAMS ACCESS',
     circleSpaceId: 2331083,
-    circleTagId: 234454,
-    seatLimit: 5
+    circleTagId: 234454
   },
-  // Add more courses here as needed
+};
+
+// Keyed by Circle paywall ID — for purchases made via Circle paywalls (Zapier bridge)
+const CIRCLE_PAYWALL_PRODUCTS = {
+  '144287': {
+    circleSpaceId: 2092678,
+    circleTagId: 234453
+  },
+  '144288': {
+    circleSpaceId: 2092835,
+    circleTagId: 234457
+  },
+  '144289': {
+    circleSpaceId: 2331083,
+    circleTagId: 234454
+  },
+  '144291': {
+    circleSpaceId: 2092837,
+    circleTagId: 234456
+  },
+  '144292': {
+    circleSpaceId: 2092710,
+    circleTagId: 234455
+  },
 };
 
 export default async function handler(req, res) {
@@ -106,10 +121,10 @@ export default async function handler(req, res) {
         const hoursRemaining = Math.floor(minutesRemaining / 60);
         const minsLeft = minutesRemaining % 60;
         const timeLeft = hoursRemaining > 0
-          ? `${hoursRemaining}h ${minsLeft}m`
-          : `${minsLeft}m`;
+          ? hoursRemaining + 'h ' + minsLeft + 'm'
+          : minsLeft + 'm';
         return res.status(400).json({
-          error: `This member was recently removed. Re-adds are unavailable for 2 hours after removal. Please try again in ${timeLeft}.`
+          error: 'This member was recently removed. Re-adds are unavailable for 2 hours after removal. Please try again in ' + timeLeft + '.'
         });
       }
     }
@@ -152,10 +167,14 @@ export default async function handler(req, res) {
 
   // ---- Course flow ----
   if (team.access_type === 'course') {
-    const courseConfig = COURSE_PRODUCTS[team.stripe_product_id];
+    // Look up course config — check Stripe product ID first, then Circle paywall ID
+    const courseConfig = COURSE_PRODUCTS[team.stripe_product_id] ||
+      CIRCLE_PAYWALL_PRODUCTS[team.circle_paywall_id];
 
     if (!courseConfig) {
-      console.error('No course config found for team:', team.id, 'product:', team.stripe_product_id);
+      console.error('No course config found for team:', team.id,
+        'stripe_product_id:', team.stripe_product_id,
+        'circle_paywall_id:', team.circle_paywall_id);
       return res.status(500).json({ error: 'Course configuration not found' });
     }
 
@@ -197,7 +216,7 @@ async function addCircleMember(email, applyTeamsMemberTag) {
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        Authorization: 'Bearer ' + CIRCLE_API_TOKEN,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -229,7 +248,7 @@ async function addCircleSpaceMember(email, spaceId) {
     {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        Authorization: 'Bearer ' + CIRCLE_API_TOKEN,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -240,13 +259,13 @@ async function addCircleSpaceMember(email, spaceId) {
     }
   );
   const data = await res.json();
-  console.log(`Add ${email} to space ${spaceId}:`, data?.message);
+  console.log('Add ' + email + ' to space ' + spaceId + ': ' + data?.message);
 }
 
 async function addCircleTag(memberId, tagId) {
   const getRes = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
-    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+    'https://app.circle.so/api/admin/v2/community_members/' + memberId,
+    { headers: { Authorization: 'Bearer ' + CIRCLE_API_TOKEN } }
   );
   const member = await getRes.json();
   const existingTagIds = (member.member_tags || []).map(t => t.id);
@@ -254,33 +273,33 @@ async function addCircleTag(memberId, tagId) {
   console.log('Existing Circle tags:', existingTagIds);
 
   if (existingTagIds.includes(tagId)) {
-    console.log(`Tag ${tagId} already present on member ${memberId}, skipping`);
+    console.log('Tag ' + tagId + ' already present on member ' + memberId + ', skipping');
     return;
   }
 
   const patchRes = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members/${memberId}`,
+    'https://app.circle.so/api/admin/v2/community_members/' + memberId,
     {
       method: 'PATCH',
       headers: {
-        Authorization: `Bearer ${CIRCLE_API_TOKEN}`,
+        Authorization: 'Bearer ' + CIRCLE_API_TOKEN,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ member_tag_ids: [...existingTagIds, tagId] })
     }
   );
-  console.log(`Add tag ${tagId} to member ${memberId} - PATCH status:`, patchRes.status);
+  console.log('Add tag ' + tagId + ' to member ' + memberId + ' - PATCH status: ' + patchRes.status);
 }
 
 async function addCircleTagByEmail(email, tagId) {
   const res = await fetch(
-    `https://app.circle.so/api/admin/v2/community_members?email=${encodeURIComponent(email)}&community_id=${CIRCLE_COMMUNITY_ID}`,
-    { headers: { Authorization: `Bearer ${CIRCLE_API_TOKEN}` } }
+    'https://app.circle.so/api/admin/v2/community_members?email=' + encodeURIComponent(email) + '&community_id=' + CIRCLE_COMMUNITY_ID,
+    { headers: { Authorization: 'Bearer ' + CIRCLE_API_TOKEN } }
   );
   const data = await res.json();
   const memberId = data?.records?.[0]?.id || null;
   if (!memberId) {
-    console.log(`Circle member not found for email: ${email}`);
+    console.log('Circle member not found for email: ' + email);
     return;
   }
   await addCircleTag(memberId, tagId);
