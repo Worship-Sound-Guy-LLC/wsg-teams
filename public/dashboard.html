@@ -266,7 +266,7 @@
     await loadDashboard(accessToken);
   }
 
-  async function loadDashboard(accessToken) {
+  async function loadDashboard(accessToken, restoreTabIndex) {
     try {
       const userRes = await fetch(SUPABASE_URL + '/auth/v1/user', {
         headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + accessToken }
@@ -294,7 +294,7 @@
         return;
       }
 
-      renderTeams(data.teams, email);
+      renderTeams(data.teams, email, restoreTabIndex);
     } catch (err) {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('teamsContainer').innerHTML =
@@ -306,7 +306,7 @@
     }
   }
 
-  function renderTeams(teams, leaderEmail) {
+  function renderTeams(teams, leaderEmail, restoreTabIndex) {
     var container = document.getElementById('teamsContainer');
     container.innerHTML = '';
 
@@ -318,7 +318,8 @@
         ? 'Central Unlimited Team'
         : (COURSE_NAMES[team.courseId] || team.courseName || 'Course Team');
       var btn = document.createElement('button');
-      btn.className = 'tab-btn' + (index === 0 ? ' active' : '');
+      var shouldBeActive = restoreTabIndex !== undefined ? (index === parseInt(restoreTabIndex)) : (index === 0);
+      btn.className = 'tab-btn' + (shouldBeActive ? ' active' : '');
       btn.textContent = label;
       btn.setAttribute('data-tab', index);
       btn.addEventListener('click', function() {
@@ -392,7 +393,8 @@
         : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">Team is full. Contact support to add more seats.</p></div>';
 
       var panel = document.createElement('div');
-      panel.className = 'tab-panel' + (index === 0 ? ' active' : '');
+      var panelShouldBeActive = restoreTabIndex !== undefined ? (index === parseInt(restoreTabIndex)) : (index === 0);
+      panel.className = 'tab-panel' + (panelShouldBeActive ? ' active' : '');
       panel.id = 'tab-panel-' + index;
 
       var card = document.createElement('div');
@@ -542,15 +544,7 @@
       if (!res.ok) { errorEl.textContent = data.error; return; }
       var activeTab = document.querySelector('.tab-btn.active');
       var activeIndex = activeTab ? activeTab.getAttribute('data-tab') : '0';
-      await loadDashboard(currentSession.accessToken);
-      var tabToRestore = document.querySelector('[data-tab="' + activeIndex + '"]');
-      if (tabToRestore) {
-        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-        tabToRestore.classList.add('active');
-        var panelToRestore = document.getElementById('tab-panel-' + activeIndex);
-        if (panelToRestore) panelToRestore.classList.add('active');
-      }
+      await loadDashboard(currentSession.accessToken, activeIndex);
     } catch (e) {
       errorEl.textContent = 'Something went wrong. Please try again.';
     }
@@ -567,15 +561,7 @@
       if (res.ok) {
         var activeTab2 = document.querySelector('.tab-btn.active');
         var activeIndex2 = activeTab2 ? activeTab2.getAttribute('data-tab') : '0';
-        await loadDashboard(currentSession.accessToken);
-        var tabToRestore2 = document.querySelector('[data-tab="' + activeIndex2 + '"]');
-        if (tabToRestore2) {
-          document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-          document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-          tabToRestore2.classList.add('active');
-          var panelToRestore2 = document.getElementById('tab-panel-' + activeIndex2);
-          if (panelToRestore2) panelToRestore2.classList.add('active');
-        }
+        await loadDashboard(currentSession.accessToken, activeIndex2);
       }
     } catch (e) { alert('Something went wrong. Please try again.'); }
   }
@@ -592,15 +578,7 @@
       var data = await res.json();
       var activeTab3 = document.querySelector('.tab-btn.active');
       var activeIndex3 = activeTab3 ? activeTab3.getAttribute('data-tab') : '0';
-      await loadDashboard(currentSession.accessToken);
-      var tabToRestore3 = document.querySelector('[data-tab="' + activeIndex3 + '"]');
-      if (tabToRestore3) {
-        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-        tabToRestore3.classList.add('active');
-        var panelToRestore3 = document.getElementById('tab-panel-' + activeIndex3);
-        if (panelToRestore3) panelToRestore3.classList.add('active');
-      }
+      await loadDashboard(currentSession.accessToken, activeIndex3);
     } catch (e) {
       btn.textContent = '↻ Sync Status';
       btn.disabled = false;
