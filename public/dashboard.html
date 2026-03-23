@@ -35,6 +35,37 @@
     }
     .signout-btn:hover { border-color: #666; color: white; }
     .container { max-width: 700px; margin: 0 auto; padding: 32px 16px; }
+    .tabs-wrap {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 4px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      flex-shrink: 0;
+      padding: 8px 16px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: #666;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #ccc; }
+    .tab-btn.active {
+      background: #252525;
+      color: #fff;
+      border: 1px solid #333;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
     .card {
       background: #1a1a1a;
       border: 1px solid #2a2a2a;
@@ -145,8 +176,6 @@
     .add-member-row input[type="email"]::placeholder { color: #444; }
     .add-member-row input[type="email"]:focus { border-color: #1a8cff; }
     .copied { color: #22c55e; font-size: 0.8rem; margin-top: 6px; }
-
-    /* No team state */
     .no-team-card { text-align: center; padding: 56px 24px; }
     .no-team-icon { font-size: 3rem; margin-bottom: 20px; }
     .no-team-card h3 { font-size: 1.4rem; font-weight: 700; margin-bottom: 12px; }
@@ -169,6 +198,7 @@
     .support-link a:hover { text-decoration: underline; }
     .btn-sync { background: #1a1a1a; color: #888; border: 1px solid #333; font-size: 0.82rem; font-weight: 100; padding: 7px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
     .btn-sync:hover { border-color: #1a8cff; color: #1a8cff; }
+    .course-note { font-size: 0.8rem; color: #555; margin-top: 8px; font-style: italic; }
   </style>
 </head>
 <body>
@@ -190,6 +220,14 @@
   const SUPABASE_URL = 'https://ptofajaxaopzdwtfvfhq.supabase.co';
   const SUPABASE_ANON_KEY = 'sb_publishable_pbucGPyxVzuK77Q3n62QNA_F8x0SzY_';
   const API_BASE = '/api';
+
+  const COURSE_NAMES = {
+    2092678: 'Sound Guy Essentials',
+    2092835: 'X32 Masterclass',
+    2092837: 'Drums Masterclass',
+    2092710: 'EQ Secrets Masterclass',
+    2331083: 'Sunday Vocal Formula'
+  };
 
   function getStatusLabel(status) {
     if (status === 'active') return '✓ Enrolled';
@@ -230,8 +268,8 @@
 
   async function loadDashboard(accessToken) {
     try {
-      const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${accessToken}` }
+      const userRes = await fetch(SUPABASE_URL + '/auth/v1/user', {
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + accessToken }
       });
       if (!userRes.ok) { redirectToLogin(); return; }
 
@@ -240,63 +278,91 @@
       currentSession = { accessToken, email };
       document.getElementById('userEmailDisplay').textContent = email;
 
-      const res = await fetch(`${API_BASE}/dashboard?email=${encodeURIComponent(email)}`);
+      const res = await fetch(API_BASE + '/dashboard?email=' + encodeURIComponent(email));
       const data = await res.json();
       document.getElementById('loadingState').style.display = 'none';
 
       if (!res.ok || !data.teams || data.teams.length === 0) {
-        document.getElementById('teamsContainer').innerHTML = `
-          <div class="card no-team-card">
-            <div class="no-team-icon">👥</div>
-            <h3>No active team subscription found</h3>
-            <p>We couldn't find an active WSG Central team subscription for <strong>${email}</strong>. Get started by purchasing a team plan.</p>
-            <a href="https://worshipsoundguy.com/central/" class="btn-upgrade">View Team Plans →</a>
-            <span class="support-link">Already purchased? <a href="mailto:support@worshipsoundguy.com">Contact support</a></span>
-          </div>`;
+        document.getElementById('teamsContainer').innerHTML =
+          '<div class="card no-team-card">' +
+            '<div class="no-team-icon">👥</div>' +
+            '<h3>No active team found</h3>' +
+            '<p>We couldn\'t find an active WSG Central team for <strong>' + email + '</strong>. Get started by purchasing a team plan or course team access.</p>' +
+            '<a href="https://worshipsoundguy.com/central/" class="btn-upgrade">View Team Plans →</a>' +
+            '<span class="support-link">Already purchased? <a href="mailto:support@worshipsoundguy.com">Contact support</a></span>' +
+          '</div>';
         return;
       }
 
       renderTeams(data.teams, email);
     } catch (err) {
       document.getElementById('loadingState').style.display = 'none';
-      document.getElementById('teamsContainer').innerHTML = `
-        <div class="card no-team-card">
-          <div class="no-team-icon">⚠️</div>
-          <h3>Something went wrong</h3>
-          <p>Please try refreshing the page or signing in again.</p>
-        </div>`;
+      document.getElementById('teamsContainer').innerHTML =
+        '<div class="card no-team-card">' +
+          '<div class="no-team-icon">⚠️</div>' +
+          '<h3>Something went wrong</h3>' +
+          '<p>Please try refreshing the page or signing in again.</p>' +
+        '</div>';
     }
   }
 
   function renderTeams(teams, leaderEmail) {
-    const container = document.getElementById('teamsContainer');
+    var container = document.getElementById('teamsContainer');
     container.innerHTML = '';
 
-    teams.forEach(function(team) {
-      const isFull = team.seatsUsed >= team.seatLimit;
-      const badgeClass = team.accessType === 'subscription' ? 'badge-subscription' : 'badge-course';
-      const badgeLabel = team.accessType === 'subscription' ? 'Subscription Team' : 'Course Team';
+    var tabsWrap = document.createElement('div');
+    tabsWrap.className = 'tabs-wrap';
 
-      const activeMembers = team.members.filter(function(m) { return m.status !== 'revoked'; });
-      const revokedMembers = team.members.filter(function(m) { return m.status === 'revoked'; });
+    teams.forEach(function(team, index) {
+      var label = team.accessType === 'subscription'
+        ? 'Subscription Team'
+        : (COURSE_NAMES[team.courseId] || team.courseName || 'Central Unlimited Team');
+      var btn = document.createElement('button');
+      btn.className = 'tab-btn' + (index === 0 ? ' active' : '');
+      btn.textContent = label;
+      btn.setAttribute('data-tab', index);
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('tab-panel-' + index).classList.add('active');
+      });
+      tabsWrap.appendChild(btn);
+    });
 
-      const activeMembersHTML = activeMembers.length === 0
+    if (teams.length > 1) {
+      container.appendChild(tabsWrap);
+    }
+
+    teams.forEach(function(team, index) {
+      var isCourse = team.accessType === 'course';
+      var isFull = team.seatsUsed >= team.seatLimit;
+      var badgeClass = isCourse ? 'badge-course' : 'badge-subscription';
+      var teamTitle = isCourse ? (COURSE_NAMES[team.courseId] || team.courseName || 'Course Team') : 'Central Unlimited Team';
+
+      var activeMembers = team.members.filter(function(m) { return m.status !== 'revoked'; });
+      var revokedMembers = team.members.filter(function(m) { return m.status === 'revoked'; });
+
+      var activeMembersHTML = activeMembers.length === 0
         ? '<div class="empty-members">No members added yet. Share your invite link or add members below!</div>'
         : activeMembers.map(function(m) {
-            const showResend = m.invite_status === 'invited' || m.invite_status === 'opened';
-            const resendBtn = showResend
+            var showResend = m.invite_status === 'invited' || m.invite_status === 'opened';
+            var resendBtn = showResend
               ? '<button class="btn-resend" data-resend-email="' + m.email + '" data-resend-team="' + team.id + '">Resend</button>'
+              : '';
+            var removeBtn = !isCourse
+              ? '<button class="btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>'
               : '';
             return '<div class="member-row">' +
               '<div class="member-info">' +
                 '<div class="member-email">' + m.email + resendBtn + '</div>' +
                 '<div class="member-status ' + (m.invite_status || 'invited') + '">' + getStatusLabel(m.invite_status) + '</div>' +
               '</div>' +
-              '<button class="btn-remove" data-team="' + team.id + '" data-email="' + m.email + '">Remove</button>' +
+              removeBtn +
             '</div>';
           }).join('');
 
-      const revokedMembersHTML = revokedMembers.map(function(m) {
+      var revokedMembersHTML = !isCourse ? revokedMembers.map(function(m) {
         return '<div class="member-row revoked">' +
           '<div class="member-info">' +
             '<div class="member-email">' + m.email + '</div>' +
@@ -304,17 +370,16 @@
           '</div>' +
           '<button class="btn-readd" data-readd-team="' + team.id + '" data-readd-email="' + m.email + '">Re-add</button>' +
         '</div>';
-      }).join('');
+      }).join('') : '';
 
-      const toggleHTML = revokedMembers.length > 0
+      var toggleHTML = !isCourse && revokedMembers.length > 0
         ? '<button class="toggle-removed-btn" data-toggle-team="' + team.id + '">+ Show ' + revokedMembers.length + ' removed member' + (revokedMembers.length !== 1 ? 's' : '') + '</button>' +
           '<div id="revoked-' + team.id + '" style="display:none;">' + revokedMembersHTML + '</div>'
         : '';
 
-      const membersHTML = activeMembersHTML + toggleHTML;
+      var membersHTML = activeMembersHTML + toggleHTML;
 
-      const syncButton = '<button class="btn btn-sync" data-sync-team="' + team.id + '">↻ Sync Status</button>';
-      const addMemberSection = !isFull
+      var addMemberSection = !isFull
         ? '<div class="add-member-section">' +
             '<div class="section-label">Add a Member by Email</div>' +
             '<div class="add-member-row">' +
@@ -322,18 +387,23 @@
               '<button class="btn btn-primary" data-add-team="' + team.id + '" data-token="' + (team.inviteLink ? team.inviteLink.split('token=')[1] : '') + '">Add</button>' +
             '</div>' +
             '<div class="error-msg" id="addError-' + team.id + '"></div>' +
+            (isCourse ? '<div class="course-note">Course access is permanent once granted.</div>' : '') +
           '</div>'
-        : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">⚠️ Team is full. Contact support to add more seats.</p></div>';
+        : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">Team is full. Contact support to add more seats.</p></div>';
 
-      const card = document.createElement('div');
+      var panel = document.createElement('div');
+      panel.className = 'tab-panel' + (index === 0 ? ' active' : '');
+      panel.id = 'tab-panel-' + index;
+
+      var card = document.createElement('div');
       card.className = 'card';
       card.innerHTML =
         '<div class="team-header">' +
-          '<div class="team-title">' + badgeLabel + '</div>' +
+          '<div class="team-title">' + teamTitle + '</div>' +
           '<span class="badge ' + badgeClass + '">' + team.seatsUsed + '/' + team.seatLimit + ' seats used</span>' +
         '</div>' +
         '<div class="seats-wrap">' +
-          '<div class="seats-label">' + (isFull ? '⚠️ Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
+          '<div class="seats-label">' + (isFull ? 'Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
           '<div class="seats-full-row">' +
             '<div class="seats-avatars">' +
               Array.from({ length: team.seatLimit }, function(_, i) {
@@ -358,16 +428,17 @@
             '<div class="invite-link-text" id="link-' + team.id + '">' + (team.inviteLink || 'No invite link available') + '</div>' +
             '<button class="btn btn-copy" data-copy="' + team.id + '">Copy</button>' +
           '</div>' +
-          '<div class="copied" id="copied-' + team.id + '" style="display:none">✓ Copied!</div>' +
+          '<div class="copied" id="copied-' + team.id + '" style="display:none">Copied!</div>' +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-        '<div class="section-label" style="margin-bottom:0;">Team Members</div>' +
-        '<button class="btn btn-sync" data-sync-team="' + team.id + '">Check Enrollment Status</button>' +
-          '</div>' +
+          '<div class="section-label" style="margin-bottom:0;">Team Members</div>' +
+          '<button class="btn btn-sync" data-sync-team="' + team.id + '">Check Enrollment Status</button>' +
+        '</div>' +
         '<div id="members-' + team.id + '">' + membersHTML + '</div>' +
         addMemberSection;
 
-      container.appendChild(card);
+      panel.appendChild(card);
+      container.appendChild(panel);
     });
 
     container.querySelectorAll('[data-resend-email]').forEach(function(btn) {
@@ -375,9 +446,9 @@
     });
     container.querySelectorAll('[data-readd-team]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        const teamId = btn.getAttribute('data-readd-team');
-        const email = btn.getAttribute('data-readd-email');
-        const input = document.getElementById('addEmail-' + teamId);
+        var teamId = btn.getAttribute('data-readd-team');
+        var email = btn.getAttribute('data-readd-email');
+        var input = document.getElementById('addEmail-' + teamId);
         if (input) {
           input.value = email;
           input.focus();
@@ -389,18 +460,17 @@
     });
     container.querySelectorAll('[data-toggle-team]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        const teamId = btn.getAttribute('data-toggle-team');
-        const revokedEl = document.getElementById('revoked-' + teamId);
-        const count = btn.getAttribute('data-toggle-team') && revokedEl.querySelectorAll('.member-row').length;
-        const isHidden = revokedEl.style.display === 'none';
+        var teamId = btn.getAttribute('data-toggle-team');
+        var revokedEl = document.getElementById('revoked-' + teamId);
+        var isHidden = revokedEl.style.display === 'none';
         revokedEl.style.display = isHidden ? 'block' : 'none';
         btn.textContent = isHidden
-          ? '− Hide removed members'
+          ? 'Hide removed members'
           : '+ Show ' + revokedEl.querySelectorAll('.member-row').length + ' removed member' + (revokedEl.querySelectorAll('.member-row').length !== 1 ? 's' : '');
       });
     });
     container.querySelectorAll('[data-sync-team]').forEach(function(btn) {
-    btn.addEventListener('click', function() { syncStatus(btn.getAttribute('data-sync-team'), btn); });
+      btn.addEventListener('click', function() { syncStatus(btn.getAttribute('data-sync-team'), btn); });
     });
     container.querySelectorAll('[data-copy]').forEach(function(btn) {
       btn.addEventListener('click', function() { copyLink(btn.getAttribute('data-copy')); });
@@ -414,17 +484,17 @@
   }
 
   async function resendInvite(email, btn) {
-    const original = btn.textContent;
+    var original = btn.textContent;
     btn.textContent = 'Sending...';
     btn.disabled = true;
     try {
-      const res = await fetch(API_BASE + '/resend-invite', {
+      var res = await fetch(API_BASE + '/resend-invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.accessToken },
         body: JSON.stringify({ memberEmail: email })
       });
       if (res.ok) {
-        btn.textContent = '✓ Sent';
+        btn.textContent = 'Sent';
         btn.style.color = '#22c55e';
         btn.style.borderColor = '#22c55e';
         setTimeout(function() {
@@ -444,38 +514,33 @@
       }
     } catch (e) {
       btn.textContent = 'Failed';
-      setTimeout(function() {
-        btn.textContent = original;
-        btn.disabled = false;
-      }, 3000);
+      setTimeout(function() { btn.textContent = original; btn.disabled = false; }, 3000);
     }
   }
 
   async function addMember(teamId, token) {
-    const emailInput = document.getElementById('addEmail-' + teamId);
-    const errorEl = document.getElementById('addError-' + teamId);
-    const email = emailInput.value.trim();
+    var emailInput = document.getElementById('addEmail-' + teamId);
+    var errorEl = document.getElementById('addError-' + teamId);
+    var email = emailInput.value.trim();
     errorEl.textContent = '';
     if (!email) { errorEl.textContent = 'Please enter an email.'; return; }
+
+    var addBtn = document.querySelector('[data-add-team="' + teamId + '"]');
+    var isCourseTeam = addBtn && addBtn.closest('.tab-panel') && addBtn.closest('.tab-panel').querySelector('.course-note');
+    if (isCourseTeam) {
+      var confirmed = confirm('⚠️ Warning:\n\nOnce you give this user access to this course, access cannot be revoked. Their seat cannot be swapped for another user later.\n\nAre you sure you want to continue?');
+      if (!confirmed) return;
+    }
+
     try {
-      const res = await fetch(API_BASE + '/invite', {
+      var res = await fetch(API_BASE + '/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.accessToken },
         body: JSON.stringify({ token: token, memberEmail: email, addedByLeader: true })
       });
-      const data = await res.json();
+      var data = await res.json();
       if (!res.ok) { errorEl.textContent = data.error; return; }
-      var activeTab = document.querySelector('.tab-btn.active');
-      var activeIndex = activeTab ? activeTab.getAttribute('data-tab') : '0';
       await loadDashboard(currentSession.accessToken);
-      var tabToRestore = document.querySelector('[data-tab="' + activeIndex + '"]');
-      if (tabToRestore) {
-        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-        document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-        tabToRestore.classList.add('active');
-        var panelToRestore = document.getElementById('tab-panel-' + activeIndex);
-        if (panelToRestore) panelToRestore.classList.add('active');
-      }
     } catch (e) {
       errorEl.textContent = 'Something went wrong. Please try again.';
     }
@@ -484,56 +549,33 @@
   async function removeMember(teamId, memberEmail) {
     if (!confirm('Are you sure you want to remove ' + memberEmail + ' from this team?\n\nNote: You will not be able to re-add them for 2 hours.')) return;
     try {
-      const res = await fetch(API_BASE + '/remove-member', {
+      var res = await fetch(API_BASE + '/remove-member', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.accessToken },
         body: JSON.stringify({ teamId: teamId, memberEmail: memberEmail })
       });
-      if (res.ok) {
-        var activeTab2 = document.querySelector('.tab-btn.active');
-        var activeIndex2 = activeTab2 ? activeTab2.getAttribute('data-tab') : '0';
-        await loadDashboard(currentSession.accessToken);
-        var tabToRestore2 = document.querySelector('[data-tab="' + activeIndex2 + '"]');
-        if (tabToRestore2) {
-          document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-          document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-          tabToRestore2.classList.add('active');
-          var panelToRestore2 = document.getElementById('tab-panel-' + activeIndex2);
-          if (panelToRestore2) panelToRestore2.classList.add('active');
-        }
-      }
+      if (res.ok) await loadDashboard(currentSession.accessToken);
     } catch (e) { alert('Something went wrong. Please try again.'); }
   }
 
   async function syncStatus(teamId, btn) {
-  btn.textContent = 'Syncing...';
-  btn.disabled = true;
-  try {
-    const res = await fetch(API_BASE + '/sync-status', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentSession.accessToken}` },
-      body: JSON.stringify({ teamId: teamId })
-    });
-    const data = await res.json();
-    var activeTab3 = document.querySelector('.tab-btn.active');
-    var activeIndex3 = activeTab3 ? activeTab3.getAttribute('data-tab') : '0';
-    await loadDashboard(currentSession.accessToken);
-    var tabToRestore3 = document.querySelector('[data-tab="' + activeIndex3 + '"]');
-    if (tabToRestore3) {
-      document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
-      document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
-      tabToRestore3.classList.add('active');
-      var panelToRestore3 = document.getElementById('tab-panel-' + activeIndex3);
-      if (panelToRestore3) panelToRestore3.classList.add('active');
+    btn.textContent = 'Syncing...';
+    btn.disabled = true;
+    try {
+      var res = await fetch(API_BASE + '/sync-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSession.accessToken },
+        body: JSON.stringify({ teamId: teamId })
+      });
+      await loadDashboard(currentSession.accessToken);
+    } catch (e) {
+      btn.textContent = 'Check Enrollment Status';
+      btn.disabled = false;
     }
-  } catch (e) {
-    btn.textContent = '↻ Sync Status';
-    btn.disabled = false;
   }
-}
 
   function copyLink(teamId) {
-    const text = document.getElementById('link-' + teamId).textContent;
+    var text = document.getElementById('link-' + teamId).textContent;
     navigator.clipboard.writeText(text).then(function() {
       document.getElementById('copied-' + teamId).style.display = 'block';
       setTimeout(function() { document.getElementById('copied-' + teamId).style.display = 'none'; }, 2000);
