@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { email, paywallId, circleUserId } = req.body;
+  const { email, paywallId } = req.body;
 
   if (!email || !paywallId) {
     console.error('Missing required fields:', { email, paywallId });
@@ -101,6 +101,7 @@ export default async function handler(req, res) {
     access_type: 'course',
     course_id: course.circleSpaceId,
     stripe_product_id: null,
+    circle_paywall_id: String(paywallId),
     seat_limit: course.seatLimit,
     status: 'active'
   }).select().single();
