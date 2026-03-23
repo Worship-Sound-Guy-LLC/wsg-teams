@@ -192,6 +192,14 @@ async function handleSubscriptionCreated(subscription) {
     token: token
   });
 
+// Add leader as first member so seat count is accurate
+  await supabase.from('team_members').insert({
+    team_id: team.id,
+    member_email: leaderEmail.toLowerCase(),
+    status: 'active',
+    invite_status: 'active'
+  });
+  
   console.log('Team created for ' + leaderEmail + ', token: ' + token);
   await addCircleTagByEmail(leaderEmail, TEAMS_LEADER_TAG_ID);
 }
