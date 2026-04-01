@@ -199,6 +199,20 @@
     .btn-sync { background: #1a1a1a; color: #888; border: 1px solid #333; font-size: 0.82rem; font-weight: 100; padding: 7px 14px; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
     .btn-sync:hover { border-color: #1a8cff; color: #1a8cff; }
     .course-note { font-size: 0.8rem; color: #555; margin-top: 8px; font-style: italic; }
+    .seats-overflow-pill {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 36px;
+      padding: 0 12px;
+      background: #1e1e1e;
+      border: 1.5px solid #2e2e2e;
+      border-radius: 18px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #888;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -408,18 +422,27 @@
           '<div class="seats-label">' + (isFull ? 'Team is full' : team.seatsRemaining + ' seat' + (team.seatsRemaining !== 1 ? 's' : '') + ' remaining') + '</div>' +
           '<div class="seats-full-row">' +
             '<div class="seats-avatars">' +
-              Array.from({ length: team.seatLimit }, function(_, i) {
-                var filled = i < team.seatsUsed;
-                var fullClass = filled && isFull ? ' full' : '';
-                var avatarClass = filled ? 'filled' + fullClass : 'empty';
-                var iconColor = filled ? '#2e2e2e' : '#ffffff';
-                return '<div class="seat-avatar ' + avatarClass + '" title="' + (filled ? 'Seat in use' : 'Empty seat') + '">' +
-                  '<svg viewBox="0 0 24 24" fill="' + iconColor + '" xmlns="http://www.w3.org/2000/svg">' +
-                    '<circle cx="12" cy="8" r="4"/>' +
-                    '<path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>' +
-                  '</svg>' +
-                '</div>';
-              }).join('') +
+              (function() {
+                var maxAvatars = 10;
+                var showCount = Math.min(team.seatLimit, maxAvatars);
+                var extraSeats = team.seatLimit > maxAvatars ? team.seatLimit - maxAvatars : 0;
+                var avatarHTML = Array.from({ length: showCount }, function(_, i) {
+                  var filled = i < team.seatsUsed;
+                  var fullClass = filled && isFull ? ' full' : '';
+                  var avatarClass = filled ? 'filled' + fullClass : 'empty';
+                  var iconColor = filled ? '#2e2e2e' : '#ffffff';
+                  return '<div class="seat-avatar ' + avatarClass + '" title="' + (filled ? 'Seat in use' : 'Empty seat') + '">' +
+                    '<svg viewBox="0 0 24 24" fill="' + iconColor + '" xmlns="http://www.w3.org/2000/svg">' +
+                      '<circle cx="12" cy="8" r="4"/>' +
+                      '<path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>' +
+                    '</svg>' +
+                  '</div>';
+                }).join('');
+                if (extraSeats > 0) {
+                  avatarHTML += '<div class="seats-overflow-pill">+' + extraSeats + ' more</div>';
+                }
+                return avatarHTML;
+              })() +
             '</div>' +
             (isFull ? '<a href="https://worshipsoundguy.com/central" target="_blank" class="btn-more-seats">Need additional seats? →</a>' : '') +
           '</div>' +
