@@ -526,7 +526,7 @@
             '<div class="error-msg" id="addError-' + team.id + '"></div>' +
             (isCourse ? '<div class="course-note">Course access is permanent once granted.</div>' : '') +
           '</div>'
-        : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">Team is full. <button id="openSeatsModal2" style="background:transparent;border:none;color:#1a8cff;font-size:0.85rem;cursor:pointer;padding:0;text-decoration:underline;">Purchase additional seats</button>' + (!isCourse ? ' or <a href="STRIPE_CUSTOMER_PORTAL_URL_HERE" target="_blank" style="color:#1a8cff;font-size:0.85rem;">manage billing</a>.' : '.') + '</p></div>';
+        : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">Team is full. <button id="openSeatsModal2" style="background:transparent;border:none;color:#1a8cff;font-size:0.85rem;cursor:pointer;padding:0;text-decoration:underline;">Purchase additional seats</button>' + (!isCourse ? ' or <a href="https://billing.stripe.com/p/login/eVq6oA1DHdrv4gP5WJ3wQ00" target="_blank" style="color:#1a8cff;font-size:0.85rem;">manage billing</a>.' : '.') + '</p></div>';
 
       var panel = document.createElement('div');
       var panelShouldBeActive = restoreTabIndex !== undefined ? (index === parseInt(restoreTabIndex)) : (index === 0);
@@ -541,7 +541,7 @@
               '<span>⚠️ Your team is over capacity — please remove ' + (team.seatsUsed - team.seatLimit) + ' member' + (team.seatsUsed - team.seatLimit !== 1 ? 's' : '') + ' or purchase additional seats.</span>' +
               // STRIPE CUSTOMER PORTAL URL — replace the href placeholder below with your Stripe billing portal URL
               // Find it in: Stripe Dashboard → Settings → Billing → Customer portal → Copy link
-              '<a href="STRIPE_CUSTOMER_PORTAL_URL_HERE" target="_blank" class="btn-manage-billing">Manage Seat Billing →</a>' +
+              '<a href="https://billing.stripe.com/p/login/eVq6oA1DHdrv4gP5WJ3wQ00" target="_blank" class="btn-manage-billing">Manage Seat Billing →</a>' +
             '</div>'
           : '') +
         '<div class="team-header">' +
