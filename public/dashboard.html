@@ -213,9 +213,130 @@
       color: #888;
       white-space: nowrap;
     }
+    .over-capacity-banner {
+      background: #2a0d0d;
+      border: 1px solid #5a1a1a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .over-capacity-banner span {
+      color: #ff6b6b;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .btn-manage-billing {
+      background: transparent;
+      color: #ff6b6b;
+      border: 1px solid #5a1a1a;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-manage-billing:hover { background: #3a1010; border-color: #ff6b6b; }
+    /* Seats modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 14px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 380px;
+      margin: 16px;
+    }
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .modal-subtitle {
+      font-size: 0.82rem;
+      color: #666;
+      margin-bottom: 20px;
+    }
+    .seat-option {
+      display: block;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+      text-decoration: none;
+      transition: border-color 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+    .seat-option:hover { border-color: #1a8cff; background: #0d1e33; }
+    .seat-option-label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+    .seat-option-price {
+      font-size: 0.82rem;
+      color: #888;
+    }
+    .seat-option-savings {
+      font-size: 0.75rem;
+      color: #22c55e;
+      margin-top: 2px;
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #555;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: block;
+      width: 100%;
+      text-align: center;
+      margin-top: 4px;
+      padding: 8px 0;
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: #999; }
   </style>
 </head>
 <body>
+
+<!-- Additional Seats Modal -->
+<div class="modal-overlay" id="seatsModal">
+  <div class="modal-box">
+    <div class="modal-title">Additional Seats</div>
+    <div class="modal-subtitle">Each additional seat adds one more member slot to your team. Billed per seat.</div>
+    <a href="https://buy.stripe.com/eVq6oA1DHdrv4gP5WJ3wQ00" target="_blank" class="seat-option">
+      <div class="seat-option-label">Monthly</div>
+      <div class="seat-option-price">$15 / seat / month</div>
+    </a>
+    <a href="https://buy.stripe.com/cNi14g0zD87b6oXcl73wQ01" target="_blank" class="seat-option">
+      <div class="seat-option-label">Annual</div>
+      <div class="seat-option-price">$180 / seat / year</div>
+      <div class="seat-option-savings">Pay annually, no monthly billing</div>
+    </a>
+    <button class="modal-close" id="seatsModalClose">Cancel</button>
+  </div>
+</div>
 
 <div class="header">
   <img src="/WSG_Central_Logo_lite.png" alt="WSG | CENTRAL" />
@@ -352,6 +473,7 @@
     teams.forEach(function(team, index) {
       var isCourse = team.accessType === 'course';
       var isFull = team.seatsUsed >= team.seatLimit;
+      var isOverCapacity = team.seatsUsed > team.seatLimit;
       var badgeClass = isCourse ? 'badge-course' : 'badge-subscription';
       var teamTitle = isCourse ? (COURSE_NAMES[team.courseId] || team.courseName || 'Course Team') : 'Central Unlimited Team';
 
@@ -404,7 +526,7 @@
             '<div class="error-msg" id="addError-' + team.id + '"></div>' +
             (isCourse ? '<div class="course-note">Course access is permanent once granted.</div>' : '') +
           '</div>'
-        : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">Team is full. Contact support to add more seats.</p></div>';
+        : '<div class="add-member-section"><p style="color:#ff4444;font-size:0.85rem;">Team is full. <button id="openSeatsModal2" style="background:transparent;border:none;color:#1a8cff;font-size:0.85rem;cursor:pointer;padding:0;text-decoration:underline;">Purchase additional seats</button>' + (!isCourse ? ' or <a href="STRIPE_CUSTOMER_PORTAL_URL_HERE" target="_blank" style="color:#1a8cff;font-size:0.85rem;">manage billing</a>.' : '.') + '</p></div>';
 
       var panel = document.createElement('div');
       var panelShouldBeActive = restoreTabIndex !== undefined ? (index === parseInt(restoreTabIndex)) : (index === 0);
@@ -414,6 +536,14 @@
       var card = document.createElement('div');
       card.className = 'card';
       card.innerHTML =
+        (isOverCapacity && !isCourse
+          ? '<div class="over-capacity-banner">' +
+              '<span>⚠️ Your team is over capacity — please remove ' + (team.seatsUsed - team.seatLimit) + ' member' + (team.seatsUsed - team.seatLimit !== 1 ? 's' : '') + ' or purchase additional seats.</span>' +
+              // STRIPE CUSTOMER PORTAL URL — replace the href placeholder below with your Stripe billing portal URL
+              // Find it in: Stripe Dashboard → Settings → Billing → Customer portal → Copy link
+              '<a href="STRIPE_CUSTOMER_PORTAL_URL_HERE" target="_blank" class="btn-manage-billing">Manage Seat Billing →</a>' +
+            '</div>'
+          : '') +
         '<div class="team-header">' +
           '<div class="team-title">' + teamTitle + '</div>' +
           '<span class="badge ' + badgeClass + '">' + team.seatsUsed + '/' + team.seatLimit + ' seats used</span>' +
@@ -444,7 +574,7 @@
                 return avatarHTML;
               })() +
             '</div>' +
-            (isFull ? '<a href="https://worshipsoundguy.com/central" target="_blank" class="btn-more-seats">Need additional seats? →</a>' : '') +
+            (isFull && !isOverCapacity && !isCourse ? '<button class="btn-more-seats" id="openSeatsModal">Need additional seats? →</button>' : '') +
           '</div>' +
         '</div>' +
         '<div class="invite-section">' +
@@ -623,6 +753,20 @@
   }
 
   document.getElementById('signoutBtn').addEventListener('click', redirectToLogin);
+
+  // Seats modal open/close
+  document.getElementById('seatsModalClose').addEventListener('click', function() {
+    document.getElementById('seatsModal').classList.remove('open');
+  });
+  document.getElementById('seatsModal').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('open');
+  });
+  // Wire up any seats modal triggers (rendered dynamically, so use delegation)
+  document.addEventListener('click', function(e) {
+    if (e.target && (e.target.id === 'openSeatsModal' || e.target.id === 'openSeatsModal2')) {
+      document.getElementById('seatsModal').classList.add('open');
+    }
+  });
 </script>
 
 </body>
