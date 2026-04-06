@@ -10,6 +10,12 @@ const TEAMS_PRODUCT_ID = 'prod_U3GrJPneAIsOqB';
 const TEAMS_LEADER_TAG_ID = 227715;
 const FREE_ACCESS_TAG_ID = 228295;
 
+// Additional seat products — separate Stripe subscriptions purchased on top of base plan
+const ADDITIONAL_SEAT_PRODUCTS = {
+  'prod_UFz3dchmvWaizI': { name: 'Additional Seats Monthly' },       // live
+  'prod_UFz4kC8e7jqhwe': { name: 'Additional Seats Annual' },        // live
+};
+
 const COURSE_PRODUCTS = {
   'prod_UAn9cpCjcImRfG': {
     name: 'Sound Guy Essentials TEAMS ACCESS',
@@ -163,10 +169,51 @@ async function handleCourseTeamCreated(session) {
   await addCircleTagByEmail(leaderEmail, course.circleTagId);
 }
 
-// ---- Subscription handlers (unchanged) ----
+// ---- Subscription handlers ----
 
 async function handleSubscriptionCreated(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
+
+  // --- Additional seats purchased ---
+  if (ADDITIONAL_SEAT_PRODUCTS[productId]) {
+    const quantity = subscription.quantity || 1;
+    const customer = await stripe.customers.retrieve(subscription.customer);
+    const leaderEmail = customer.email?.toLowerCase();
+
+    if (!leaderEmail) {
+      console.error('No email on Stripe customer for additional seats subscription:', subscription.id);
+      return;
+    }
+
+    const { data: team, error } = await supabase
+      .from('teams')
+      .select('id, seat_limit')
+      .eq('leader_email', leaderEmail)
+      .eq('access_type', 'subscription')
+      .eq('status', 'active')
+      .single();
+
+    if (error || !team) {
+      console.error('No active subscription team found for leader:', leaderEmail);
+      return;
+    }
+
+    const newSeatLimit = team.seat_limit + quantity;
+    await supabase
+      .from('teams')
+      .update({ seat_limit: newSeatLimit })
+      .eq('id', team.id);
+
+    console.log(
+      'Additional seats added for ' + leaderEmail +
+      ' — product: ' + ADDITIONAL_SEAT_PRODUCTS[productId].name +
+      ', qty: ' + quantity +
+      ', new seat_limit: ' + newSeatLimit
+    );
+    return;
+  }
+
+  // --- Base subscription team creation (unchanged) ---
   if (productId !== TEAMS_PRODUCT_ID) return;
 
   const customer = await stripe.customers.retrieve(subscription.customer);
@@ -192,20 +239,62 @@ async function handleSubscriptionCreated(subscription) {
     token: token
   });
 
-// Add leader as first member so seat count is accurate
+  // Add leader as first member so seat count is accurate
   await supabase.from('team_members').insert({
     team_id: team.id,
     member_email: leaderEmail.toLowerCase(),
     status: 'active',
     invite_status: 'active'
   });
-  
+
   console.log('Team created for ' + leaderEmail + ', token: ' + token);
   await addCircleTagByEmail(leaderEmail, TEAMS_LEADER_TAG_ID);
 }
 
 async function handleSubscriptionDeleted(subscription) {
   const productId = subscription.items.data[0]?.price?.product;
+
+  // --- Additional seats cancelled ---
+  if (ADDITIONAL_SEAT_PRODUCTS[productId]) {
+    const quantity = subscription.quantity || 1;
+    const customer = await stripe.customers.retrieve(subscription.customer);
+    const leaderEmail = customer.email?.toLowerCase();
+
+    if (!leaderEmail) {
+      console.error('No email on Stripe customer for additional seats cancellation:', subscription.id);
+      return;
+    }
+
+    const { data: team, error } = await supabase
+      .from('teams')
+      .select('id, seat_limit')
+      .eq('leader_email', leaderEmail)
+      .eq('access_type', 'subscription')
+      .eq('status', 'active')
+      .single();
+
+    if (error || !team) {
+      console.error('No active subscription team found for leader:', leaderEmail);
+      return;
+    }
+
+    // Floor at 5 — seat_limit can never drop below the base plan's default
+    const newSeatLimit = Math.max(5, team.seat_limit - quantity);
+    await supabase
+      .from('teams')
+      .update({ seat_limit: newSeatLimit })
+      .eq('id', team.id);
+
+    console.log(
+      'Additional seats removed for ' + leaderEmail +
+      ' — product: ' + ADDITIONAL_SEAT_PRODUCTS[productId].name +
+      ', qty: ' + quantity +
+      ', new seat_limit: ' + newSeatLimit
+    );
+    return;
+  }
+
+  // --- Base subscription cancelled (unchanged) ---
   if (productId !== TEAMS_PRODUCT_ID) return;
 
   const { data: team } = await supabase
