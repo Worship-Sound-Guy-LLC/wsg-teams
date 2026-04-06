@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSG Teams — Claim Your Access</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #111111;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .logo-wrap { margin-bottom: 36px; text-align: center; }
+    .logo-wrap img { height: 32px; width: auto; }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 460px;
+    }
+    .loading-state { text-align: center; color: #555; padding: 20px 0; }
+    .error-state { text-align: center; padding: 20px 0; }
+    .error-state h3 { font-size: 1.2rem; margin-bottom: 10px; color: #ff6b6b; }
+    .error-state p { color: #666; font-size: 0.9rem; line-height: 1.6; }
+    .error-state a { color: #1a8cff; text-decoration: none; }
+    .claim-header { margin-bottom: 28px; }
+    .welcome-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #1a8cff;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .claim-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .claim-subtitle {
+      font-size: 0.88rem;
+      color: #666;
+      line-height: 1.6;
+    }
+    .entitlement-box {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 28px;
+    }
+    .entitlement-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .entitlement-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #1e1e1e;
+      font-size: 0.88rem;
+    }
+    .entitlement-row:last-child { border-bottom: none; }
+    .entitlement-key { color: #888; }
+    .entitlement-value { color: #ffffff; font-weight: 600; }
+    .badge-course {
+      background: #0d3320;
+      color: #22c55e;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #cccccc;
+      margin-bottom: 7px;
+    }
+    .form-label span { color: #666; font-weight: 400; }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: white;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input::placeholder { color: #444; }
+    .form-input:focus { border-color: #1a8cff; }
+    .btn {
+      width: 100%;
+      padding: 13px 18px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .btn-primary { background: #1a8cff; color: white; }
+    .btn-primary:hover { background: #0077ee; }
+    .btn-primary:disabled { background: #1a3a5c; color: #555; cursor: not-allowed; }
+    .error-msg {
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #2a0d0d;
+      border: 1px solid #5a1a1a;
+      border-radius: 8px;
+      display: none;
+    }
+    .support-note {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: #555;
+    }
+    .support-note a { color: #1a8cff; text-decoration: none; }
+    .support-note a:hover { text-decoration: underline; }
+
+    /* Success state */
+    .success-state { text-align: center; padding: 10px 0; }
+    .success-icon {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+    .success-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #22c55e;
+      margin-bottom: 10px;
+    }
+    .success-body {
+      font-size: 0.9rem;
+      color: #888;
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+    .success-body strong { color: #cccccc; }
+    .magic-link-note {
+      background: #0d2a18;
+      border: 1px solid #1a5a30;
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-size: 0.85rem;
+      color: #22c55e;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .manual-login-note {
+      background: #1a1a00;
+      border: 1px solid #3a3a00;
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-size: 0.85rem;
+      color: #f59e0b;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .btn-dashboard {
+      display: inline-block;
+      background: #1a8cff;
+      color: white;
+      padding: 13px 28px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn-dashboard:hover { background: #0077ee; }
+  </style>
+</head>
+<body>
+
+<div class="logo-wrap">
+  <img src="/WSG_Central_Logo_lite.png" alt="WSG | CENTRAL" />
+</div>
+
+<div class="card" id="mainCard">
+  <div class="loading-state" id="loadingState">Verifying your claim...</div>
+
+  <div class="error-state" id="errorState" style="display:none;">
+    <h3 id="errorTitle">Something went wrong</h3>
+    <p id="errorBody">This claim link may be invalid or expired. Please <a href="mailto:support@worshipsoundguy.com">contact support</a>.</p>
+  </div>
+
+  <div id="claimForm" style="display:none;">
+    <div class="claim-header">
+      <div class="welcome-label">Welcome back</div>
+      <div class="claim-title">Claim your team access</div>
+      <div class="claim-subtitle">We found your purchase. Confirm your email below to set up your team dashboard and get started.</div>
+    </div>
+
+    <div class="entitlement-box">
+      <div class="entitlement-label">Your Purchase</div>
+      <div class="entitlement-row">
+        <span class="entitlement-key">Course</span>
+        <span class="entitlement-value"><span class="badge-course" id="courseName"></span></span>
+      </div>
+      <div class="entitlement-row">
+        <span class="entitlement-key">Team seats</span>
+        <span class="entitlement-value" id="seatCount"></span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="emailInput">
+        Your email <span>(the email you purchased with)</span>
+      </label>
+      <input type="email" class="form-input" id="emailInput" placeholder="you@church.com" />
+    </div>
+
+    <button class="btn btn-primary" id="claimBtn">Claim & Set Up My Team →</button>
+    <div class="error-msg" id="formError"></div>
+
+    <div class="support-note">
+      Wrong email or need help? <a href="mailto:support@worshipsoundguy.com">Contact support</a>
+    </div>
+  </div>
+
+  <div class="success-state" id="successState" style="display:none;">
+    <div class="success-icon">🎉</div>
+    <div class="success-title">You're all set!</div>
+    <div class="success-body">
+      Your team dashboard has been created with <strong id="successSeats"></strong> seats for <strong id="successCourse"></strong>. You can now invite your team members.
+    </div>
+    <div class="magic-link-note" id="magicLinkNote">
+      ✉️ We've sent a login link to <strong id="successEmail"></strong>. Click it to go straight to your dashboard.
+    </div>
+    <div class="manual-login-note" id="manualLoginNote" style="display:none;">
+      Head to your dashboard and sign in with your email to get started.
+    </div>
+    <a href="/" class="btn-dashboard">Go to Dashboard →</a>
+  </div>
+</div>
+
+<script>
+  const API_BASE = '/api';
+  let claimToken = null;
+  let claimData = null;
+
+  window.addEventListener('load', async function() {
+    const params = new URLSearchParams(window.location.search);
+    claimToken = params.get('token');
+
+    if (!claimToken) {
+      showError('Invalid Link', 'This claim link is missing a token. Please check the link you were sent or contact support.');
+      return;
+    }
+
+    try {
+      const res = await fetch(API_BASE + '/claim?token=' + encodeURIComponent(claimToken));
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(
+          data.error === 'This claim has already been used' ? 'Already Claimed' : 'Link Unavailable',
+          data.error === 'This claim has already been used'
+            ? 'This claim link has already been used. If you need help accessing your dashboard, please contact support.'
+            : (data.error || 'This link is invalid or has expired. Please contact support.')
+        );
+        return;
+      }
+
+      claimData = data;
+      document.getElementById('courseName').textContent = data.courseName;
+      document.getElementById('seatCount').textContent = data.seatCount + ' seat' + (data.seatCount !== 1 ? 's' : '');
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('claimForm').style.display = 'block';
+
+    } catch (e) {
+      showError('Something went wrong', 'Unable to verify your claim. Please try again or contact support.');
+    }
+  });
+
+  document.getElementById('claimBtn').addEventListener('click', async function() {
+    const email = document.getElementById('emailInput').value.trim();
+    const errorEl = document.getElementById('formError');
+    errorEl.style.display = 'none';
+
+    if (!email) {
+      errorEl.textContent = 'Please enter your email address.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('claimBtn');
+    btn.disabled = true;
+    btn.textContent = 'Setting up your team...';
+
+    try {
+      const res = await fetch(API_BASE + '/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: claimToken, email })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Something went wrong. Please try again.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Claim & Set Up My Team →';
+        return;
+      }
+
+      // Show success state
+      document.getElementById('claimForm').style.display = 'none';
+      document.getElementById('successSeats').textContent = claimData.seatCount + ' seat' + (claimData.seatCount !== 1 ? 's' : '');
+      document.getElementById('successCourse').textContent = claimData.courseName;
+      document.getElementById('successEmail').textContent = email;
+
+      if (data.magicLinkSent) {
+        document.getElementById('magicLinkNote').style.display = 'block';
+        document.getElementById('manualLoginNote').style.display = 'none';
+      } else {
+        document.getElementById('magicLinkNote').style.display = 'none';
+        document.getElementById('manualLoginNote').style.display = 'block';
+      }
+
+      document.getElementById('successState').style.display = 'block';
+
+    } catch (e) {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Claim & Set Up My Team →';
+    }
+  });
+
+  function showError(title, body) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorBody').innerHTML = body;
+    document.getElementById('errorState').style.display = 'block';
+  }
+</script>
+
+</body>
+</html>
