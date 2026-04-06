@@ -12,8 +12,10 @@ const FREE_ACCESS_TAG_ID = 228295;
 
 // Additional seat products — separate Stripe subscriptions purchased on top of base plan
 const ADDITIONAL_SEAT_PRODUCTS = {
-  'prod_UFz3dchmvWaizI': { name: 'Additional Seats Monthly' },
-  'prod_UFz4kC8e7jqhwe': { name: 'Additional Seats Annual' },
+  'prod_UFz3dchmvWaizI': { name: 'Additional Seats Monthly' },       // live
+  'prod_UFz4kC8e7jqhwe': { name: 'Additional Seats Annual' },        // live
+  'prod_UHnnCDIhWlVFjv': { name: 'Additional Seats Monthly (test)' }, // test mode only — remove after testing
+  'prod_UHnoiQtm3kakMX': { name: 'Additional Seats Annual (test)' },  // test mode only — remove after testing
 };
 
 const COURSE_PRODUCTS = {
