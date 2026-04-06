@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSG Teams — Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #111111;
+      color: #fff;
+      min-height: 100vh;
+    }
+    .header {
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header img { height: 28px; width: auto; }
+    .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .user-email { font-size: 0.8rem; color: #666; }
+    .admin-badge {
+      background: #2a1a00;
+      color: #f59e0b;
+      border: 1px solid #5a3a00;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .signout-btn {
+      background: transparent;
+      color: #999;
+      border: 1px solid #333;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .signout-btn:hover { border-color: #666; color: white; }
+    .container { max-width: 600px; margin: 0 auto; padding: 40px 16px; }
+    .page-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+    .page-subtitle {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 32px;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #ffffff;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+    }
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #cccccc;
+      margin-bottom: 7px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: white;
+      outline: none;
+      transition: border-color 0.2s;
+      appearance: none;
+    }
+    .form-input::placeholder { color: #444; }
+    .form-input:focus, .form-select:focus { border-color: #1a8cff; }
+    .form-select option { background: #1a1a1a; }
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666;
+      pointer-events: none;
+      font-size: 0.9rem;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .btn-primary { background: #1a8cff; color: white; }
+    .btn-primary:hover { background: #0077ee; }
+    .btn-primary:disabled { background: #1a3a5c; color: #555; cursor: not-allowed; }
+    .error-msg {
+      color: #ff6b6b;
+      font-size: 0.85rem;
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: #2a0d0d;
+      border: 1px solid #5a1a1a;
+      border-radius: 8px;
+      display: none;
+    }
+    .success-box {
+      display: none;
+      margin-top: 20px;
+      background: #0d2a18;
+      border: 1px solid #1a5a30;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .success-box-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #22c55e;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .success-detail {
+      font-size: 0.82rem;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    .success-detail span { color: #cccccc; }
+    .claim-link-wrap {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 14px;
+    }
+    .claim-link-text {
+      flex: 1;
+      font-size: 0.8rem;
+      color: #1a8cff;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 10px 12px;
+      word-break: break-all;
+    }
+    .btn-copy-link {
+      background: #2a2a2a;
+      color: #ccc;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .btn-copy-link:hover { background: #333; color: white; }
+    .copied-msg { color: #22c55e; font-size: 0.8rem; margin-top: 6px; display: none; }
+    .btn-new { margin-top: 14px; }
+    .loading { text-align: center; color: #555; padding: 60px; }
+    .unauthorized {
+      text-align: center;
+      padding: 80px 24px;
+      color: #666;
+    }
+    .unauthorized h3 { font-size: 1.2rem; color: #fff; margin-bottom: 10px; }
+    .past-claims { margin-top: 32px; }
+    .claims-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .claims-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: #1e1e1e;
+      color: #888;
+      font-weight: 600;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .claims-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #1e1e1e;
+      color: #ccc;
+      vertical-align: middle;
+    }
+    .claims-table tr:last-child td { border-bottom: none; }
+    .status-claimed { color: #22c55e; font-weight: 600; }
+    .status-pending { color: #f59e0b; font-weight: 600; }
+    .status-expired { color: #ff4444; font-weight: 600; }
+    .btn-recopy {
+      background: transparent;
+      color: #1a8cff;
+      border: 1px solid #1a3a5c;
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-recopy:hover { background: #0d1e33; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <img src="/WSG_Central_Logo_lite.png" alt="WSG | CENTRAL" />
+  <div class="header-right">
+    <span class="user-email" id="userEmailDisplay"></span>
+    <span class="admin-badge">Admin</span>
+    <button class="signout-btn" id="signoutBtn">Sign Out</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="loading" id="loadingState">Verifying access...</div>
+  <div id="adminContent" style="display:none;">
+    <div class="page-title">Legacy Migration</div>
+    <div class="page-subtitle">Generate a claim link for a legacy course team customer. Send the link to the leader — they'll self-onboard onto the new dashboard.</div>
+
+    <div class="card">
+      <div class="card-title">Create Claim Link</div>
+
+      <div class="form-group">
+        <label class="form-label" for="leaderEmail">Leader Email</label>
+        <input type="email" class="form-input" id="leaderEmail" placeholder="leader@church.com" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="courseSelect">Course</label>
+        <div class="select-wrap">
+          <select class="form-select" id="courseSelect">
+            <option value="">— Select a course —</option>
+            <option value="144287">Sound Guy Essentials</option>
+            <option value="144288">X32 Masterclass</option>
+            <option value="144289">Sunday Vocal Formula</option>
+            <option value="144291">Drums Masterclass</option>
+            <option value="144292">EQ Secrets Masterclass</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="seatCount">Number of Seats Purchased</label>
+        <input type="number" class="form-input" id="seatCount" placeholder="5" min="1" max="500" />
+      </div>
+
+      <button class="btn btn-primary" id="createBtn">Generate Claim Link</button>
+      <div class="error-msg" id="errorMsg"></div>
+
+      <div class="success-box" id="successBox">
+        <div class="success-box-title">✓ Claim Link Created</div>
+        <div class="success-detail">Leader: <span id="successEmail"></span></div>
+        <div class="success-detail">Course: <span id="successCourse"></span></div>
+        <div class="success-detail">Seats: <span id="successSeats"></span></div>
+        <div class="success-detail" style="margin-top:4px;">Expires in 30 days.</div>
+        <div class="claim-link-wrap">
+          <div class="claim-link-text" id="successLink"></div>
+          <button class="btn-copy-link" id="copyLinkBtn">Copy</button>
+        </div>
+        <div class="copied-msg" id="copiedMsg">Copied to clipboard!</div>
+        <button class="btn btn-primary btn-new" id="newClaimBtn">Create Another</button>
+      </div>
+    </div>
+
+    <div class="past-claims" id="pastClaims"></div>
+  </div>
+  <div class="unauthorized" id="unauthorizedState" style="display:none;">
+    <h3>Access Denied</h3>
+    <p>Your account does not have admin access to this page.</p>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://ptofajaxaopzdwtfvfhq.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_pbucGPyxVzuK77Q3n62QNA_F8x0SzY_';
+  const API_BASE = '/api';
+
+  const COURSE_NAMES = {
+    '144287': 'Sound Guy Essentials',
+    '144288': 'X32 Masterclass',
+    '144289': 'Sunday Vocal Formula',
+    '144291': 'Drums Masterclass',
+    '144292': 'EQ Secrets Masterclass'
+  };
+
+  let currentSession = null;
+
+  window.addEventListener('load', async function() {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken) {
+        sessionStorage.setItem('wsg_access_token', accessToken);
+        sessionStorage.setItem('wsg_refresh_token', refreshToken);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+    await checkSession();
+  });
+
+  async function checkSession() {
+    const accessToken = sessionStorage.getItem('wsg_access_token');
+    if (!accessToken) { redirectToLogin(); return; }
+
+    const userRes = await fetch(SUPABASE_URL + '/auth/v1/user', {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + accessToken }
+    });
+
+    if (!userRes.ok) { redirectToLogin(); return; }
+
+    const user = await userRes.json();
+    currentSession = { accessToken, email: user.email };
+    document.getElementById('userEmailDisplay').textContent = user.email;
+    document.getElementById('loadingState').style.display = 'none';
+
+    // Verify admin access by hitting a protected endpoint
+    const testRes = await fetch(API_BASE + '/admin-create-claim', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + accessToken
+      },
+      body: JSON.stringify({ _ping: true })
+    });
+
+    // 400 = reached endpoint but missing fields = admin access confirmed
+    // 401/403 = not admin
+    if (testRes.status === 401 || testRes.status === 403) {
+      document.getElementById('unauthorizedState').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('adminContent').style.display = 'block';
+    loadPastClaims();
+  }
+
+  async function loadPastClaims() {
+    const res = await fetch(API_BASE + '/admin-list-claims', {
+      headers: { 'Authorization': 'Bearer ' + currentSession.accessToken }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.claims || data.claims.length === 0) return;
+
+    const now = new Date();
+    const rows = data.claims.map(c => {
+      const expired = new Date(c.expires_at) < now;
+      const status = c.claimed ? 'claimed' : (expired ? 'expired' : 'pending');
+      const statusLabel = c.claimed ? 'Claimed' : (expired ? 'Expired' : 'Pending');
+      const statusClass = 'status-' + status;
+      const copyBtn = (!c.claimed && !expired)
+        ? '<button class="btn-recopy" data-link="' + window.location.origin + '/claim?token=' + c.token + '">Copy Link</button>'
+        : '';
+      return '<tr>' +
+        '<td>' + c.leader_email + '</td>' +
+        '<td>' + (COURSE_NAMES[c.circle_paywall_id] || c.circle_paywall_id) + '</td>' +
+        '<td>' + c.seat_count + '</td>' +
+        '<td class="' + statusClass + '">' + statusLabel + '</td>' +
+        '<td>' + copyBtn + '</td>' +
+      '</tr>';
+    }).join('');
+
+    document.getElementById('pastClaims').innerHTML =
+      '<div class="card">' +
+        '<div class="card-title">Past Claims</div>' +
+        '<table class="claims-table">' +
+          '<thead><tr>' +
+            '<th>Email</th><th>Course</th><th>Seats</th><th>Status</th><th></th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+      '</div>';
+
+    document.querySelectorAll('.btn-recopy').forEach(btn => {
+      btn.addEventListener('click', function() {
+        navigator.clipboard.writeText(btn.getAttribute('data-link')).then(() => {
+          btn.textContent = 'Copied!';
+          btn.style.color = '#22c55e';
+          setTimeout(() => { btn.textContent = 'Copy Link'; btn.style.color = ''; }, 2000);
+        });
+      });
+    });
+  }
+
+  document.getElementById('createBtn').addEventListener('click', async function() {
+    const leaderEmail = document.getElementById('leaderEmail').value.trim();
+    const circlePaywallId = document.getElementById('courseSelect').value;
+    const seatCount = document.getElementById('seatCount').value.trim();
+    const errorEl = document.getElementById('errorMsg');
+    errorEl.style.display = 'none';
+
+    if (!leaderEmail || !circlePaywallId || !seatCount) {
+      errorEl.textContent = 'All fields are required.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('createBtn');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+      const res = await fetch(API_BASE + '/admin-create-claim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + currentSession.accessToken
+        },
+        body: JSON.stringify({ leaderEmail, circlePaywallId, seatCount: parseInt(seatCount) })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Something went wrong.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      document.getElementById('successEmail').textContent = leaderEmail;
+      document.getElementById('successCourse').textContent = COURSE_NAMES[circlePaywallId] || circlePaywallId;
+      document.getElementById('successSeats').textContent = seatCount;
+      document.getElementById('successLink').textContent = data.claimUrl;
+      document.getElementById('successBox').style.display = 'block';
+      loadPastClaims();
+
+    } catch (e) {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+      errorEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate Claim Link';
+    }
+  });
+
+  document.getElementById('copyLinkBtn').addEventListener('click', function() {
+    const link = document.getElementById('successLink').textContent;
+    navigator.clipboard.writeText(link).then(() => {
+      document.getElementById('copiedMsg').style.display = 'block';
+      setTimeout(() => { document.getElementById('copiedMsg').style.display = 'none'; }, 2000);
+    });
+  });
+
+  document.getElementById('newClaimBtn').addEventListener('click', function() {
+    document.getElementById('leaderEmail').value = '';
+    document.getElementById('courseSelect').value = '';
+    document.getElementById('seatCount').value = '';
+    document.getElementById('successBox').style.display = 'none';
+    document.getElementById('errorMsg').style.display = 'none';
+  });
+
+  function redirectToLogin() {
+    sessionStorage.removeItem('wsg_access_token');
+    sessionStorage.removeItem('wsg_refresh_token');
+    window.location.href = '/';
+  }
+
+  document.getElementById('signoutBtn').addEventListener('click', redirectToLogin);
+</script>
+
+</body>
+</html>
