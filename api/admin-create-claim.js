@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
@@ -10,27 +11,27 @@ const COURSE_OPTIONS = {
   '144292': { name: 'EQ Secrets Masterclass', circleSpaceId: 2092710 },
 };
 
-// Verify the request is from an approved admin email via Supabase Bearer token
-async function verifyAdmin(req) {
+function verifyAdminToken(req) {
   const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { error: 'Unauthorized', status: 401 };
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+
+  const token = authHeader.split(' ')[1];
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) return false;
+
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf8');
+    const [payload, sig] = decoded.split('.');
+    const expectedSig = crypto.createHmac('sha256', adminPassword).update(payload).digest('hex');
+    if (sig !== expectedSig) return false;
+
+    const expires = parseInt(payload);
+    if (Date.now() > expires) return false;
+
+    return true;
+  } catch {
+    return false;
   }
-
-  const accessToken = authHeader.split(' ')[1];
-  const supabaseAuth = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-  const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken);
-
-  if (error || !user) {
-    return { error: 'Unauthorized', status: 401 };
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-  if (!adminEmails.includes(user.email.toLowerCase())) {
-    return { error: 'Forbidden', status: 403 };
-  }
-
-  return { user };
 }
 
 function generateToken() {
@@ -41,8 +42,9 @@ function generateToken() {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const auth = await verifyAdmin(req);
-  if (auth.error) return res.status(auth.status).json({ error: auth.error });
+  if (!verifyAdminToken(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const { leaderEmail, circlePaywallId, seatCount } = req.body;
 
@@ -69,13 +71,12 @@ export default async function handler(req, res) {
     .single();
 
   if (existing) {
-    // Return the existing claim link rather than creating a duplicate
-    const claimUrl = `${process.env.SITE_URL}/claim?token=${existing.token}`;
+    const claimUrl = `${process.env.SITE_URL}/claim.html?token=${existing.token}`;
     return res.status(200).json({ success: true, claimUrl, note: 'Existing unclaimed claim returned' });
   }
 
   const token = generateToken();
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const { error } = await supabase.from('legacy_claims').insert({
     token,
@@ -91,8 +92,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Failed to create claim' });
   }
 
-  const claimUrl = `${process.env.SITE_URL}/claim?token=${token}`;
-  console.log('Legacy claim created for', leaderEmail, '— course:', course.name, '— seats:', seatCount, '— token:', token);
+  const claimUrl = `${process.env.SITE_URL}/claim.html?token=${token}`;
+  console.log('Legacy claim created for', leaderEmail, '— course:', course.name, '— seats:', seatCount);
 
   return res.status(200).json({ success: true, claimUrl });
 }
