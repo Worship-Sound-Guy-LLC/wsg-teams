@@ -224,9 +224,95 @@
       transition: all 0.2s;
     }
     .btn-recopy:hover { background: #0d1e33; }
+    .login-wrap {
+      display: none;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .login-wrap.visible { display: flex; }
+    .login-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 14px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .login-eyebrow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .login-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    .login-subtitle { font-size: 0.88rem; color: #666; line-height: 1.6; margin-bottom: 24px; }
+    .login-input {
+      width: 100%;
+      padding: 11px 14px;
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      color: white;
+      outline: none;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+    .login-input:focus { border-color: #f59e0b; }
+    .login-input::placeholder { color: #444; }
+    .btn-login {
+      width: 100%;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      background: #f59e0b;
+      color: #111;
+      transition: background 0.2s;
+    }
+    .btn-login:hover { background: #d97706; }
+    .btn-login:disabled { background: #5a3a00; color: #888; cursor: not-allowed; }
+    .login-error { color: #ff6b6b; font-size: 0.83rem; margin-top: 8px; display: none; }
+    .login-success {
+      display: none;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin-top: 16px;
+    }
+    .login-success .icon { font-size: 1.8rem; margin-bottom: 8px; }
+    .login-success h3 { font-size: 1rem; margin-bottom: 6px; }
+    .login-success p { color: #888; font-size: 0.85rem; line-height: 1.5; }
   </style>
 </head>
 <body>
+
+<!-- Self-contained login form — shown when not authenticated -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-card">
+    <div class="login-eyebrow">Admin Access</div>
+    <div class="login-title">WSG Teams Admin</div>
+    <div class="login-subtitle">Enter your admin email to receive a secure login link.</div>
+    <div id="loginFormState">
+      <input type="email" class="login-input" id="adminEmailInput" placeholder="your@worshipsoundguy.com" />
+      <div class="login-error" id="loginError"></div>
+      <button class="btn-login" id="loginBtn">Send Login Link</button>
+    </div>
+    <div class="login-success" id="loginSuccess">
+      <div class="icon">📬</div>
+      <h3>Check your inbox</h3>
+      <p>We sent a login link to <strong id="loginSentTo"></strong>. Click it to access the admin panel.</p>
+    </div>
+  </div>
+</div>
 
 <div class="header">
   <img src="/WSG_Central_Logo_lite.png" alt="WSG | CENTRAL" />
@@ -297,8 +383,8 @@
 </div>
 
 <script>
-  const SUPABASE_URL = 'https://wjysztiypqcvzpzewuon.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_SvAzzSY4sImCDUJyBa99lw_wnhPZjRT';
+  const SUPABASE_URL = 'https://ptofajaxaopzdwtfvfhq.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_pbucGPyxVzuK77Q3n62QNA_F8x0SzY_';
   const API_BASE = '/api';
 
   const COURSE_NAMES = {
@@ -472,10 +558,62 @@
   function redirectToLogin() {
     sessionStorage.removeItem('wsg_access_token');
     sessionStorage.removeItem('wsg_refresh_token');
-    window.location.href = '/';
+    document.querySelector('.header').style.display = 'none';
+    document.querySelector('.container').style.display = 'none';
+    document.getElementById('loginWrap').classList.add('visible');
   }
 
   document.getElementById('signoutBtn').addEventListener('click', redirectToLogin);
+
+  // Self-contained login form logic
+  document.getElementById('loginBtn').addEventListener('click', sendAdminMagicLink);
+  document.getElementById('adminEmailInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendAdminMagicLink();
+  });
+
+  async function sendAdminMagicLink() {
+    const email = document.getElementById('adminEmailInput').value.trim();
+    const errorEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errorEl.style.display = 'none';
+
+    if (!email) {
+      errorEl.textContent = 'Please enter your email address.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    try {
+      const res = await fetch(SUPABASE_URL + '/auth/v1/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+        body: JSON.stringify({
+          email: email,
+          options: { emailRedirectTo: window.location.origin + '/admin.html' }
+        })
+      });
+
+      if (res.ok || res.status === 200) {
+        document.getElementById('loginSentTo').textContent = email;
+        document.getElementById('loginFormState').style.display = 'none';
+        document.getElementById('loginSuccess').style.display = 'block';
+      } else {
+        const data = await res.json();
+        errorEl.textContent = data.message || 'Something went wrong. Please try again.';
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Send Login Link';
+      }
+    } catch (e) {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Send Login Link';
+    }
+  }
 </script>
 
 </body>
