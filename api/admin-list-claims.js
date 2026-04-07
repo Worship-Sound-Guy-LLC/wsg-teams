@@ -1,34 +1,37 @@
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
-async function verifyAdmin(req) {
+function verifyAdminToken(req) {
   const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return { error: 'Unauthorized', status: 401 };
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+
+  const token = authHeader.split(' ')[1];
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) return false;
+
+  try {
+    const decoded = Buffer.from(token, 'base64').toString('utf8');
+    const [payload, sig] = decoded.split('.');
+    const expectedSig = crypto.createHmac('sha256', adminPassword).update(payload).digest('hex');
+    if (sig !== expectedSig) return false;
+
+    const expires = parseInt(payload);
+    if (Date.now() > expires) return false;
+
+    return true;
+  } catch {
+    return false;
   }
-
-  const accessToken = authHeader.split(' ')[1];
-  const supabaseAuth = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-  const { data: { user }, error } = await supabaseAuth.auth.getUser(accessToken);
-
-  if (error || !user) {
-    return { error: 'Unauthorized', status: 401 };
-  }
-
-  const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
-  if (!adminEmails.includes(user.email.toLowerCase())) {
-    return { error: 'Forbidden', status: 403 };
-  }
-
-  return { user };
 }
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const auth = await verifyAdmin(req);
-  if (auth.error) return res.status(auth.status).json({ error: auth.error });
+  if (!verifyAdminToken(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   const { data: claims, error } = await supabase
     .from('legacy_claims')
