@@ -341,18 +341,11 @@
     document.getElementById('userEmailDisplay').textContent = user.email;
     document.getElementById('loadingState').style.display = 'none';
 
-    // Verify admin access by hitting a protected endpoint
-    const testRes = await fetch(API_BASE + '/admin-create-claim', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + accessToken
-      },
-      body: JSON.stringify({ _ping: true })
+    // Verify admin access using list-claims GET endpoint
+    const testRes = await fetch(API_BASE + '/admin-list-claims', {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
     });
 
-    // 400 = reached endpoint but missing fields = admin access confirmed
-    // 401/403 = not admin
     if (testRes.status === 401 || testRes.status === 403) {
       document.getElementById('unauthorizedState').style.display = 'block';
       return;
