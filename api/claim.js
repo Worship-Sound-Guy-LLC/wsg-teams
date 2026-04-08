@@ -113,13 +113,12 @@ export default async function handler(req, res) {
     await addCircleSpaceMember(claim.leader_email, claim.course_id);
     await addCircleTagByEmail(claim.leader_email, getCircleTagId(claim.circle_paywall_id));
 
-    // Send magic link so leader lands straight on the dashboard
-    const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-    const { error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
+    // Send magic link via Supabase OTP — actually sends the email
+    const supabaseAnon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const { error: magicLinkError } = await supabaseAnon.auth.signInWithOtp({
       email: claim.leader_email,
       options: {
-        redirectTo: `${process.env.SITE_URL}/dashboard`
+        emailRedirectTo: `${process.env.SITE_URL}/dashboard.html`
       }
     });
 
