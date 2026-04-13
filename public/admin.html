@@ -182,6 +182,52 @@
     }
     .btn-copy-link:hover { background: #333; color: white; }
     .copied-msg { color: #22c55e; font-size: 0.8rem; margin-top: 6px; display: none; }
+    .warning-box {
+      display: none;
+      margin-top: 14px;
+      background: #2a1a00;
+      border: 1px solid #5a3a00;
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .warning-box-title { font-size: 0.85rem; font-weight: 700; color: #f59e0b; margin-bottom: 8px; }
+    .warning-box-body { font-size: 0.82rem; color: #c8a060; line-height: 1.6; margin-bottom: 14px; }
+    .btn-override {
+      background: #f59e0b;
+      color: #111;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 7px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-override:hover { background: #d97706; }
+    .verified-badge {
+      display: inline-block;
+      background: #0d2a18;
+      color: #22c55e;
+      border: 1px solid #1a5a30;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .unverified-badge {
+      display: inline-block;
+      background: #2a1a00;
+      color: #f59e0b;
+      border: 1px solid #5a3a00;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
     .btn-new { margin-top: 14px; }
     .loading { text-align: center; color: #555; padding: 60px; }
     .unauthorized {
@@ -352,8 +398,14 @@
       <button class="btn btn-primary" id="createBtn">Generate Claim Link</button>
       <div class="error-msg" id="errorMsg"></div>
 
+      <div class="warning-box" id="warningBox">
+        <div class="warning-box-title">⚠️ No Purchase Record Found</div>
+        <div class="warning-box-body" id="warningMsg"></div>
+        <button class="btn-override" id="overrideBtn">Override & Create Claim Anyway</button>
+      </div>
+
       <div class="success-box" id="successBox">
-        <div class="success-box-title">✓ Claim Link Created</div>
+        <div class="success-box-title">✓ Claim Link Created <span id="verifiedBadge"></span></div>
         <div class="success-detail">Leader: <span id="successEmail"></span></div>
         <div class="success-detail">Course: <span id="successCourse"></span></div>
         <div class="success-detail">Seats: <span id="successSeats"></span></div>
@@ -480,39 +532,65 @@
     const btn = document.getElementById('createBtn');
     btn.disabled = true;
     btn.textContent = 'Generating...';
+    document.getElementById('warningBox').style.display = 'none';
 
     try {
-      const res = await fetch(API_BASE + '/admin-create-claim', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + currentSession.accessToken
-        },
-        body: JSON.stringify({ leaderEmail, circlePaywallId, seatCount: parseInt(seatCount) })
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        errorEl.textContent = data.error || 'Something went wrong.';
-        errorEl.style.display = 'block';
-        return;
-      }
-
-      document.getElementById('successEmail').textContent = leaderEmail;
-      document.getElementById('successCourse').textContent = COURSE_NAMES[circlePaywallId] || circlePaywallId;
-      document.getElementById('successSeats').textContent = seatCount;
-      document.getElementById('successLink').textContent = data.claimUrl;
-      document.getElementById('successBox').style.display = 'block';
-      loadPastClaims();
-
-    } catch (e) {
-      errorEl.textContent = 'Something went wrong. Please try again.';
-      errorEl.style.display = 'block';
+      await submitClaim(leaderEmail, circlePaywallId, seatCount, false);
     } finally {
       btn.disabled = false;
       btn.textContent = 'Generate Claim Link';
     }
   });
+
+  async function submitClaim(leaderEmail, circlePaywallId, seatCount, override) {
+    const errorEl = document.getElementById('errorMsg');
+    errorEl.style.display = 'none';
+
+    const res = await fetch(API_BASE + '/admin-create-claim', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + currentSession.accessToken
+      },
+      body: JSON.stringify({ leaderEmail, circlePaywallId, seatCount: parseInt(seatCount), override })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorEl.textContent = data.error || 'Something went wrong.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    if (data.purchaseNotFound) {
+      document.getElementById('warningMsg').textContent = data.warning;
+      document.getElementById('warningBox').style.display = 'block';
+
+      // Wire override button
+      const overrideBtn = document.getElementById('overrideBtn');
+      overrideBtn.onclick = async function() {
+        document.getElementById('warningBox').style.display = 'none';
+        overrideBtn.disabled = true;
+        await submitClaim(leaderEmail, circlePaywallId, seatCount, true);
+        overrideBtn.disabled = false;
+      };
+      return;
+    }
+
+    // Success
+    const verifiedBadge = document.getElementById('verifiedBadge');
+    verifiedBadge.innerHTML = data.purchaseVerified
+      ? '<span class="verified-badge">✓ Purchase Verified</span>'
+      : '<span class="unverified-badge">⚠ Override Used</span>';
+
+    document.getElementById('successEmail').textContent = leaderEmail;
+    document.getElementById('successCourse').textContent = COURSE_NAMES[circlePaywallId] || circlePaywallId;
+    document.getElementById('successSeats').textContent = seatCount;
+    document.getElementById('successLink').textContent = data.claimUrl;
+    document.getElementById('successBox').style.display = 'block';
+    loadPastClaims();
+  }
 
   document.getElementById('copyLinkBtn').addEventListener('click', function() {
     const link = document.getElementById('successLink').textContent;
