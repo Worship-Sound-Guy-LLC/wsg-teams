@@ -61,6 +61,27 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Seat count must be between 1 and 500' });
   }
 
+  // Check purchase record against legacy_purchases table
+  const { data: purchaseRecord } = await supabase
+    .from('legacy_purchases')
+    .select('customer_name, order_count')
+    .eq('customer_email', leaderEmail.toLowerCase())
+    .eq('circle_paywall_id', String(circlePaywallId))
+    .single();
+
+  // purchaseVerified: true if found, false if not — admin can override either way
+  const purchaseVerified = !!purchaseRecord;
+
+  // If override not explicitly confirmed and no purchase record found, return warning
+  const { override } = req.body;
+  if (!purchaseVerified && !override) {
+    return res.status(200).json({
+      success: false,
+      purchaseNotFound: true,
+      warning: `No purchase record found for ${leaderEmail} on ${course.name}. If you are sure this is valid, resubmit with override: true.`
+    });
+  }
+
   // Check if an unclaimed claim already exists for this email + course
   const { data: existing } = await supabase
     .from('legacy_claims')
@@ -72,7 +93,7 @@ export default async function handler(req, res) {
 
   if (existing) {
     const claimUrl = `${process.env.SITE_URL}/claim.html?token=${existing.token}`;
-    return res.status(200).json({ success: true, claimUrl, note: 'Existing unclaimed claim returned' });
+    return res.status(200).json({ success: true, claimUrl, purchaseVerified, note: 'Existing unclaimed claim returned' });
   }
 
   const token = generateToken();
@@ -93,7 +114,7 @@ export default async function handler(req, res) {
   }
 
   const claimUrl = `${process.env.SITE_URL}/claim.html?token=${token}`;
-  console.log('Legacy claim created for', leaderEmail, '— course:', course.name, '— seats:', seatCount);
+  console.log('Legacy claim created for', leaderEmail, '— course:', course.name, '— seats:', seatCount, '— verified:', purchaseVerified);
 
-  return res.status(200).json({ success: true, claimUrl });
+  return res.status(200).json({ success: true, claimUrl, purchaseVerified });
 }
