@@ -183,65 +183,97 @@ async function handleSubscriptionUpdated(subscription, previousAttributes) {
 
   const newProductId = subscription.items.data[0]?.price?.product;
 
-  // Only act if the new product is the Teams product
-  if (newProductId !== TEAMS_PRODUCT_ID) return;
+  // --- Upgrade: individual → teams ---
+  if (newProductId === TEAMS_PRODUCT_ID && previousProduct !== TEAMS_PRODUCT_ID) {
+    const customer = await stripe.customers.retrieve(subscription.customer);
+    const leaderEmail = customer.email?.toLowerCase();
 
-  // Only act if the previous product was NOT the Teams product (avoid duplicate team creation)
-  if (previousProduct === TEAMS_PRODUCT_ID) return;
+    if (!leaderEmail) {
+      console.error('No email on Stripe customer for subscription upgrade:', subscription.id);
+      return;
+    }
 
-  const customer = await stripe.customers.retrieve(subscription.customer);
-  const leaderEmail = customer.email?.toLowerCase();
+    // Idempotency guard — don't create a duplicate team
+    const { data: existingTeam } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('leader_email', leaderEmail)
+      .eq('access_type', 'subscription')
+      .eq('status', 'active')
+      .single();
 
-  if (!leaderEmail) {
-    console.error('No email on Stripe customer for subscription upgrade:', subscription.id);
+    if (existingTeam) {
+      console.log('Subscription upgrade detected for ' + leaderEmail + ' but team already exists — skipping');
+      return;
+    }
+
+    const token = generateToken();
+
+    const { data: team, error } = await supabase.from('teams').insert({
+      leader_email: leaderEmail,
+      stripe_customer_id: subscription.customer,
+      stripe_subscription_id: subscription.id,
+      access_type: 'subscription',
+      seat_limit: 5,
+      status: 'active'
+    }).select().single();
+
+    if (error) {
+      console.error('Error creating team from subscription upgrade:', error);
+      return;
+    }
+
+    await supabase.from('invite_tokens').insert({ team_id: team.id, token });
+
+    await supabase.from('team_members').insert({
+      team_id: team.id,
+      member_email: leaderEmail,
+      status: 'active',
+      invite_status: 'active'
+    });
+
+    console.log('Team created from subscription upgrade for ' + leaderEmail + ', token: ' + token);
+    await addCircleTagByEmail(leaderEmail, TEAMS_LEADER_TAG_ID);
     return;
   }
 
-  // Check if a team already exists for this leader — idempotency guard
-  const { data: existingTeam } = await supabase
-    .from('teams')
-    .select('id')
-    .eq('leader_email', leaderEmail)
-    .eq('access_type', 'subscription')
-    .eq('status', 'active')
-    .single();
+  // --- Downgrade: teams → individual ---
+  if (previousProduct === TEAMS_PRODUCT_ID && newProductId !== TEAMS_PRODUCT_ID) {
+    const { data: team } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('stripe_subscription_id', subscription.id)
+      .eq('status', 'active')
+      .single();
 
-  if (existingTeam) {
-    console.log('Subscription upgrade detected for ' + leaderEmail + ' but team already exists — skipping');
+    if (!team) {
+      console.log('Downgrade detected but no active team found for subscription:', subscription.id);
+      return;
+    }
+
+    const { data: members } = await supabase
+      .from('team_members')
+      .select('member_email, member_circle_id')
+      .eq('team_id', team.id)
+      .eq('status', 'active');
+
+    if (members?.length) {
+      for (const member of members) {
+        await applyFreeAccessTag(member.member_email, member.member_circle_id);
+      }
+    }
+
+    await supabase.from('team_members')
+      .update({ status: 'revoked' })
+      .eq('team_id', team.id);
+
+    await supabase.from('teams')
+      .update({ status: 'cancelled' })
+      .eq('id', team.id);
+
+    console.log('Team ' + team.id + ' cancelled from downgrade, ' + (members?.length || 0) + ' members downgraded');
     return;
   }
-
-  // Create team — same logic as handleSubscriptionCreated
-  const token = generateToken();
-
-  const { data: team, error } = await supabase.from('teams').insert({
-    leader_email: leaderEmail,
-    stripe_customer_id: subscription.customer,
-    stripe_subscription_id: subscription.id,
-    access_type: 'subscription',
-    seat_limit: 5,
-    status: 'active'
-  }).select().single();
-
-  if (error) {
-    console.error('Error creating team from subscription upgrade:', error);
-    return;
-  }
-
-  await supabase.from('invite_tokens').insert({
-    team_id: team.id,
-    token: token
-  });
-
-  await supabase.from('team_members').insert({
-    team_id: team.id,
-    member_email: leaderEmail,
-    status: 'active',
-    invite_status: 'active'
-  });
-
-  console.log('Team created from subscription upgrade for ' + leaderEmail + ', token: ' + token);
-  await addCircleTagByEmail(leaderEmail, TEAMS_LEADER_TAG_ID);
 }
 
 // ---- Subscription handlers ----
