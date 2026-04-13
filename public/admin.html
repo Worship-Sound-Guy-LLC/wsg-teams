@@ -204,6 +204,72 @@
       transition: background 0.2s;
     }
     .btn-override:hover { background: #d97706; }
+    .lookup-results {
+      display: none;
+      margin-top: 16px;
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .lookup-results-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .lookup-course-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #1e1e1e;
+      transition: background 0.15s;
+    }
+    .lookup-course-row:last-child { border-bottom: none; }
+    .lookup-course-row:hover { background: #161616; }
+    .lookup-course-row.disabled { opacity: 0.45; pointer-events: none; }
+    .lookup-checkbox { width: 16px; height: 16px; accent-color: #1a8cff; cursor: pointer; flex-shrink: 0; }
+    .lookup-course-info { flex: 1; }
+    .lookup-course-name { font-size: 0.9rem; font-weight: 600; color: #fff; margin-bottom: 2px; }
+    .lookup-course-meta { font-size: 0.78rem; color: #666; }
+    .lookup-seat-input {
+      width: 70px;
+      padding: 7px 10px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      color: white;
+      outline: none;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .lookup-seat-input:focus { border-color: #1a8cff; }
+    .lookup-no-results {
+      padding: 20px 16px;
+      text-align: center;
+      color: #555;
+      font-size: 0.88rem;
+    }
+    .btn-lookup {
+      width: 100%;
+      padding: 11px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      background: #2a2a2a;
+      color: #ccc;
+      transition: all 0.2s;
+      margin-top: 8px;
+    }
+    .btn-lookup:hover { background: #333; color: white; }
+    .btn-lookup:disabled { opacity: 0.5; cursor: not-allowed; }
     .verified-badge {
       display: inline-block;
       background: #0d2a18;
@@ -373,29 +439,18 @@
 
       <div class="form-group">
         <label class="form-label" for="leaderEmail">Leader Email</label>
-        <input type="email" class="form-input" id="leaderEmail" placeholder="leader@church.com" />
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" for="courseSelect">Course</label>
-        <div class="select-wrap">
-          <select class="form-select" id="courseSelect">
-            <option value="">— Select a course —</option>
-            <option value="144287">Sound Guy Essentials</option>
-            <option value="144288">X32 Masterclass</option>
-            <option value="144289">Sunday Vocal Formula</option>
-            <option value="144291">Drums Masterclass</option>
-            <option value="144292">EQ Secrets Masterclass</option>
-          </select>
+        <div style="display:flex;gap:8px;">
+          <input type="email" class="form-input" id="leaderEmail" placeholder="leader@church.com" style="flex:1;" />
+          <button class="btn-lookup" id="lookupBtn" style="width:auto;padding:11px 18px;margin-top:0;">Look Up</button>
         </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" for="seatCount">Number of Seats Purchased</label>
-        <input type="number" class="form-input" id="seatCount" placeholder="5" min="1" max="500" />
+      <div class="lookup-results" id="lookupResults">
+        <div class="lookup-results-header" id="lookupResultsHeader">Purchase Records Found</div>
+        <div id="lookupResultsBody"></div>
       </div>
 
-      <button class="btn btn-primary" id="createBtn">Generate Claim Link</button>
+      <button class="btn btn-primary" id="createBtn" style="display:none;margin-top:16px;">Generate Claim Links</button>
       <div class="error-msg" id="errorMsg"></div>
 
       <div class="warning-box" id="warningBox">
@@ -516,15 +571,129 @@
     });
   }
 
-  document.getElementById('createBtn').addEventListener('click', async function() {
-    const leaderEmail = document.getElementById('leaderEmail').value.trim();
-    const circlePaywallId = document.getElementById('courseSelect').value;
-    const seatCount = document.getElementById('seatCount').value.trim();
+  // Lookup handler
+  document.getElementById('lookupBtn').addEventListener('click', lookupPurchases);
+  document.getElementById('leaderEmail').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') lookupPurchases();
+  });
+
+  async function lookupPurchases() {
+    const email = document.getElementById('leaderEmail').value.trim();
     const errorEl = document.getElementById('errorMsg');
     errorEl.style.display = 'none';
 
-    if (!leaderEmail || !circlePaywallId || !seatCount) {
-      errorEl.textContent = 'All fields are required.';
+    if (!email) {
+      errorEl.textContent = 'Please enter an email address.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('lookupBtn');
+    btn.disabled = true;
+    btn.textContent = 'Looking up...';
+
+    try {
+      const res = await fetch(API_BASE + '/admin-lookup-purchases?email=' + encodeURIComponent(email), {
+        headers: { 'Authorization': 'Bearer ' + currentSession.accessToken }
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errorEl.textContent = data.error || 'Lookup failed.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const resultsEl = document.getElementById('lookupResults');
+      const bodyEl = document.getElementById('lookupResultsBody');
+      const headerEl = document.getElementById('lookupResultsHeader');
+      resultsEl.style.display = 'block';
+
+      if (!data.found) {
+        headerEl.textContent = 'No Purchase Records Found';
+        bodyEl.innerHTML = '<div class="lookup-no-results">No legacy purchases found for <strong>' + email + '</strong>. You can still create a claim manually using the form below.</div>';
+        showManualForm();
+        return;
+      }
+
+      headerEl.textContent = 'Purchase Records Found — Select Courses to Claim';
+      bodyEl.innerHTML = data.purchases.map(p => {
+        const disabled = p.alreadyClaimed ? 'disabled' : '';
+        const disabledClass = p.alreadyClaimed ? 'disabled' : '';
+        const metaText = p.alreadyClaimed
+          ? 'Already claimed'
+          : (p.claimPending ? 'Claim pending' : p.orderCount + ' order' + (p.orderCount !== 1 ? 's' : '') + ' · ' + p.seatCount + ' seats');
+        return '<div class="lookup-course-row ' + disabledClass + '" data-paywall="' + p.circlePaywallId + '">' +
+          '<input type="checkbox" class="lookup-checkbox" id="check-' + p.circlePaywallId + '" value="' + p.circlePaywallId + '" ' + (p.alreadyClaimed ? 'disabled' : 'checked') + ' />' +
+          '<div class="lookup-course-info">' +
+            '<div class="lookup-course-name">' + p.courseName + '</div>' +
+            '<div class="lookup-course-meta">' + metaText + '</div>' +
+          '</div>' +
+          '<input type="number" class="lookup-seat-input" id="seats-' + p.circlePaywallId + '" value="' + p.seatCount + '" min="1" max="500" ' + (p.alreadyClaimed ? 'disabled' : '') + ' />' +
+        '</div>';
+      }).join('');
+
+      document.getElementById('createBtn').style.display = 'block';
+
+    } catch (e) {
+      errorEl.textContent = 'Something went wrong. Please try again.';
+      errorEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Look Up';
+    }
+  }
+
+  function showManualForm() {
+    // Show a simple manual entry row for unverified claims
+    const bodyEl = document.getElementById('lookupResultsBody');
+    bodyEl.innerHTML += '<div style="padding:14px 16px;border-top:1px solid #2a2a2a;">' +
+      '<div class="form-label" style="margin-bottom:10px;">Manually select course:</div>' +
+      '<div style="display:flex;gap:8px;align-items:center;">' +
+        '<div class="select-wrap" style="flex:1;">' +
+          '<select class="form-select" id="manualCourseSelect">' +
+            '<option value="">— Select a course —</option>' +
+            '<option value="144287">Sound Guy Essentials</option>' +
+            '<option value="144288">X32 Masterclass</option>' +
+            '<option value="144291">Drums Masterclass</option>' +
+            '<option value="144292">EQ Secrets Masterclass</option>' +
+          '</select>' +
+        '</div>' +
+        '<input type="number" class="lookup-seat-input" id="manualSeatCount" placeholder="5" min="1" max="500" style="width:80px;" />' +
+      '</div>' +
+    '</div>';
+    document.getElementById('createBtn').style.display = 'block';
+  }
+
+  // Generate claims for all selected courses
+  document.getElementById('createBtn').addEventListener('click', async function() {
+    const leaderEmail = document.getElementById('leaderEmail').value.trim();
+    const errorEl = document.getElementById('errorMsg');
+    errorEl.style.display = 'none';
+    document.getElementById('warningBox').style.display = 'none';
+
+    if (!leaderEmail) {
+      errorEl.textContent = 'Please enter an email address.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    // Collect selected courses from lookup results
+    const checkboxes = document.querySelectorAll('.lookup-checkbox:checked:not(:disabled)');
+    let coursesToClaim = Array.from(checkboxes).map(cb => ({
+      circlePaywallId: cb.value,
+      seatCount: parseInt(document.getElementById('seats-' + cb.value)?.value || '5')
+    }));
+
+    // Check for manual entry
+    const manualCourse = document.getElementById('manualCourseSelect')?.value;
+    const manualSeats = document.getElementById('manualSeatCount')?.value;
+    if (manualCourse && manualSeats) {
+      coursesToClaim.push({ circlePaywallId: manualCourse, seatCount: parseInt(manualSeats) });
+    }
+
+    if (coursesToClaim.length === 0) {
+      errorEl.textContent = 'Please select at least one course.';
       errorEl.style.display = 'block';
       return;
     }
@@ -532,13 +701,14 @@
     const btn = document.getElementById('createBtn');
     btn.disabled = true;
     btn.textContent = 'Generating...';
-    document.getElementById('warningBox').style.display = 'none';
 
     try {
-      await submitClaim(leaderEmail, circlePaywallId, seatCount, false);
+      for (const course of coursesToClaim) {
+        await submitClaim(leaderEmail, course.circlePaywallId, course.seatCount, false);
+      }
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Generate Claim Link';
+      btn.textContent = 'Generate Claim Links';
     }
   });
 
@@ -602,9 +772,11 @@
 
   document.getElementById('newClaimBtn').addEventListener('click', function() {
     document.getElementById('leaderEmail').value = '';
-    document.getElementById('courseSelect').value = '';
-    document.getElementById('seatCount').value = '';
+    document.getElementById('lookupResults').style.display = 'none';
+    document.getElementById('lookupResultsBody').innerHTML = '';
+    document.getElementById('createBtn').style.display = 'none';
     document.getElementById('successBox').style.display = 'none';
+    document.getElementById('warningBox').style.display = 'none';
     document.getElementById('errorMsg').style.display = 'none';
   });
 
