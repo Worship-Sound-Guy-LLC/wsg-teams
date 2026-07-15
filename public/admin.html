@@ -538,7 +538,7 @@
       const statusLabel = c.claimed ? 'Claimed' : (expired ? 'Expired' : 'Pending');
       const statusClass = 'status-' + status;
       const copyBtn = (!c.claimed && !expired)
-        ? '<button class="btn-recopy" data-link="' + window.location.origin + '/claim?token=' + c.token + '">Copy Link</button>'
+        ? '<button class="btn-recopy" data-link="' + window.location.origin + '/claim.html?token=' + c.token + '">Copy Link</button>'
         : '';
       return '<tr>' +
         '<td>' + c.leader_email + '</td>' +
