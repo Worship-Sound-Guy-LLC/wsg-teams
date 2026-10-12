@@ -16,6 +16,15 @@ const ADDITIONAL_SEAT_PRODUCTS = {
   'prod_UFz4kC8e7jqhwe': { name: 'Additional Seats Annual' },        // live
 };
 
+// One-time additional seat products for course teams — keyed by circle_paywall_id
+const COURSE_SEAT_PRODUCTS = {
+  'prod_VQh5nTtdYpB5rO': { name: 'SGE Additional Seat',       circlePaywallId: 144287 },
+  'prod_VQh6igmyFQglys': { name: 'X32 Additional Seat',       circlePaywallId: 144288 },
+  'prod_VQh72AMVYaJtcA': { name: 'Drums Additional Seat',     circlePaywallId: 144291 },
+  'prod_VQh7zeXZWm1Eag': { name: 'EQ Secrets Additional Seat', circlePaywallId: 144292 },
+  'prod_VQhAICQ67grnos': { name: 'SVF Additional Seat',       circlePaywallId: 144289 },
+};
+
 const COURSE_PRODUCTS = {
   'prod_UAn9cpCjcImRfG': {
     name: 'Sound Guy Essentials TEAMS ACCESS',
@@ -77,15 +86,74 @@ export default async function handler(req, res) {
 
   if (event.type === 'customer.subscription.created') {
     await handleSubscriptionCreated(event.data.object);
-  } else if (event.type === 'customer.subscription.updated') {
-    await handleSubscriptionUpdated(event.data.object, event.data.previous_attributes);
   } else if (event.type === 'customer.subscription.deleted') {
     await handleSubscriptionDeleted(event.data.object);
   } else if (event.type === 'checkout.session.completed') {
-    await handleCourseTeamCreated(event.data.object);
+    const session = event.data.object;
+    if (session.metadata?.flow === 'course_seat') {
+      await handleCourseSeatPurchased(session);
+    } else {
+      await handleCourseTeamCreated(session);
+    }
   }
 
   res.status(200).json({ received: true });
+}
+
+// ---- Course team additional seat purchase ----
+
+async function handleCourseSeatPurchased(session) {
+  const teamId = session.metadata?.team_id;
+  const leaderEmail = session.metadata?.leader_email;
+
+  if (!teamId || !leaderEmail) {
+    console.error('course_seat flow missing metadata on session:', session.id);
+    return;
+  }
+
+  // Verify the team exists and is active
+  const { data: team, error } = await supabase
+    .from('teams')
+    .select('id, seat_limit, circle_paywall_id')
+    .eq('id', teamId)
+    .eq('status', 'active')
+    .single();
+
+  if (error || !team) {
+    console.error('course_seat: team not found or inactive for teamId:', teamId);
+    return;
+  }
+
+  // Confirm the product matches the team's course (belt-and-suspenders check)
+  const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+  const productId = lineItems.data[0]?.price?.product;
+  const seatProduct = COURSE_SEAT_PRODUCTS[productId];
+
+  if (!seatProduct) {
+    console.error('course_seat: unrecognised product', productId, 'on session', session.id);
+    return;
+  }
+
+  if (String(seatProduct.circlePaywallId) !== String(team.circle_paywall_id)) {
+    console.error(
+      'course_seat: product/team mismatch — product paywall',
+      seatProduct.circlePaywallId,
+      'vs team paywall',
+      team.circle_paywall_id
+    );
+    return;
+  }
+
+  const newSeatLimit = team.seat_limit + 1;
+  await supabase
+    .from('teams')
+    .update({ seat_limit: newSeatLimit })
+    .eq('id', teamId);
+
+  console.log(
+    `course_seat: +1 seat for team ${teamId} (${seatProduct.name})` +
+    ` — leader: ${leaderEmail}, new seat_limit: ${newSeatLimit}`
+  );
 }
 
 // ---- A la carte course team handler ----
@@ -169,111 +237,6 @@ async function handleCourseTeamCreated(session) {
   // Add leader to Circle space + apply course teammate tag
   await addCircleSpaceMember(leaderEmail, course.circleSpaceId);
   await addCircleTagByEmail(leaderEmail, course.circleTagId);
-}
-
-// ---- Subscription upgrade handler (e.g. individual → teams via Circle subscription groups) ----
-
-async function handleSubscriptionUpdated(subscription, previousAttributes) {
-  // Only act if the subscription items actually changed (i.e. product changed)
-  const previousProduct = previousAttributes?.items?.data?.[0]?.plan?.product;
-  if (!previousProduct) {
-    // Items didn't change — billing date update or similar, ignore
-    return;
-  }
-
-  const newProductId = subscription.items.data[0]?.price?.product;
-
-  // --- Upgrade: individual → teams ---
-  if (newProductId === TEAMS_PRODUCT_ID && previousProduct !== TEAMS_PRODUCT_ID) {
-    const customer = await stripe.customers.retrieve(subscription.customer);
-    const leaderEmail = customer.email?.toLowerCase();
-
-    if (!leaderEmail) {
-      console.error('No email on Stripe customer for subscription upgrade:', subscription.id);
-      return;
-    }
-
-    // Idempotency guard — don't create a duplicate team
-    const { data: existingTeam } = await supabase
-      .from('teams')
-      .select('id')
-      .eq('leader_email', leaderEmail)
-      .eq('access_type', 'subscription')
-      .eq('status', 'active')
-      .single();
-
-    if (existingTeam) {
-      console.log('Subscription upgrade detected for ' + leaderEmail + ' but team already exists — skipping');
-      return;
-    }
-
-    const token = generateToken();
-
-    const { data: team, error } = await supabase.from('teams').insert({
-      leader_email: leaderEmail,
-      stripe_customer_id: subscription.customer,
-      stripe_subscription_id: subscription.id,
-      access_type: 'subscription',
-      seat_limit: 5,
-      status: 'active'
-    }).select().single();
-
-    if (error) {
-      console.error('Error creating team from subscription upgrade:', error);
-      return;
-    }
-
-    await supabase.from('invite_tokens').insert({ team_id: team.id, token });
-
-    await supabase.from('team_members').insert({
-      team_id: team.id,
-      member_email: leaderEmail,
-      status: 'active',
-      invite_status: 'active'
-    });
-
-    console.log('Team created from subscription upgrade for ' + leaderEmail + ', token: ' + token);
-    await addCircleTagByEmail(leaderEmail, TEAMS_LEADER_TAG_ID);
-    return;
-  }
-
-  // --- Downgrade: teams → individual ---
-  if (previousProduct === TEAMS_PRODUCT_ID && newProductId !== TEAMS_PRODUCT_ID) {
-    const { data: team } = await supabase
-      .from('teams')
-      .select('id')
-      .eq('stripe_subscription_id', subscription.id)
-      .eq('status', 'active')
-      .single();
-
-    if (!team) {
-      console.log('Downgrade detected but no active team found for subscription:', subscription.id);
-      return;
-    }
-
-    const { data: members } = await supabase
-      .from('team_members')
-      .select('member_email, member_circle_id')
-      .eq('team_id', team.id)
-      .eq('status', 'active');
-
-    if (members?.length) {
-      for (const member of members) {
-        await applyFreeAccessTag(member.member_email, member.member_circle_id);
-      }
-    }
-
-    await supabase.from('team_members')
-      .update({ status: 'revoked' })
-      .eq('team_id', team.id);
-
-    await supabase.from('teams')
-      .update({ status: 'cancelled' })
-      .eq('id', team.id);
-
-    console.log('Team ' + team.id + ' cancelled from downgrade, ' + (members?.length || 0) + ' members downgraded');
-    return;
-  }
 }
 
 // ---- Subscription handlers ----
