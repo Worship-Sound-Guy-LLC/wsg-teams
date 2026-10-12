@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSG | CENTRAL — Seat Added</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #111111;
+      color: #fff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 48px 40px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+    }
+    .icon { font-size: 3rem; margin-bottom: 20px; }
+    h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 12px; }
+    p { color: #888; font-size: 0.95rem; line-height: 1.6; margin-bottom: 28px; }
+    .btn {
+      display: inline-block;
+      background: #1a8cff;
+      color: white;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #0077ee; }
+    .countdown { font-size: 0.8rem; color: #555; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>Seat Added!</h1>
+    <p>Your additional seat has been purchased and your team capacity has been updated. You can now add one more member from your dashboard.</p>
+    <a href="/dashboard.html" class="btn">Go to Dashboard →</a>
+    <div class="countdown" id="countdown">Redirecting in 5 seconds...</div>
+  </div>
+
+  <script>
+    var seconds = 5;
+    var el = document.getElementById('countdown');
+    var interval = setInterval(function() {
+      seconds--;
+      if (seconds <= 0) {
+        clearInterval(interval);
+        window.location.href = '/dashboard.html';
+      } else {
+        el.textContent = 'Redirecting in ' + seconds + ' seconds...';
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
